@@ -112,7 +112,7 @@ QWidget *MainWindow::createImageTab()
     // --- File list section ---
     m_imageFileList = new QListWidget(tab);
     m_imageFileList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_imageFileList->setMinimumHeight(120);
+    m_imageFileList->setMinimumHeight(60);
     m_imageFileList->setAcceptDrops(true);
     m_imageFileList->setDragDropMode(QAbstractItemView::DropOnly);
 
@@ -174,6 +174,8 @@ QWidget *MainWindow::createImageTab()
 
     settingsLayout->addWidget(compGroup);
     settingsLayout->addWidget(scaleGroup);
+    settingsLayout->setStretch(0, 1);
+    settingsLayout->setStretch(1, 1);
 
     // --- Format + Output row ---
     QHBoxLayout *outputRow = new QHBoxLayout();
@@ -254,7 +256,7 @@ QWidget *MainWindow::createVideoTab()
     // --- File list section ---
     m_videoFileList = new QListWidget(tab);
     m_videoFileList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-    m_videoFileList->setMinimumHeight(120);
+    m_videoFileList->setMinimumHeight(60);
     m_videoFileList->setAcceptDrops(true);
     m_videoFileList->setDragDropMode(QAbstractItemView::DropOnly);
 
@@ -332,6 +334,8 @@ QWidget *MainWindow::createVideoTab()
 
     settingsLayout->addWidget(encGroup);
     settingsLayout->addWidget(scaleGroup);
+    settingsLayout->setStretch(0, 1);
+    settingsLayout->setStretch(1, 1);
 
     // --- Output directory ---
     QGroupBox *outDirGroup = new QGroupBox(QStringLiteral("输出目录"), tab);
