@@ -4,6 +4,7 @@ project(ffmpeg-wrapper VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
@@ -14,6 +15,11 @@ set(SOURCES
     src/imageprocessor.cpp
     src/videoprocessor.cpp
     src/utils.cpp
+    src/resources.qrc
+)
+
+set(RESOURCES
+    src/app.rc
 )
 
 set(HEADERS
@@ -24,7 +30,7 @@ set(HEADERS
     src/utils.h
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets)
 

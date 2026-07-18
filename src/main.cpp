@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QIcon>
 
 #include "mainwindow.h"
 #include "utils.h"
@@ -10,6 +11,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("FFmpeg Wrapper"));
     app.setApplicationVersion(QStringLiteral("1.0.0"));
+    app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(
         QMainWindow {
