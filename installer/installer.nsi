@@ -8,11 +8,12 @@
 !define PRODUCT_DIR_REGKEY "Software\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 
+Unicode true
 SetCompressor lzma
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "..\dist\ffmpeg-wrapper-${PRODUCT_VERSION}-setup.exe"
-InstallDir "$PROGRAMFILES64\${PRODUCT_NAME}"
+InstallDir "$PROGRAMFILES64\ffmpeg-wrapper"
 RequestExecutionLevel admin
 
 !include "MUI2.nsh"
@@ -22,7 +23,6 @@ RequestExecutionLevel admin
 !define MUI_UNICON "..\src\resources\app-icon.ico"
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "..\LICENSE.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
