@@ -8,6 +8,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QStatusBar>
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QDragEnterEvent>
@@ -34,7 +35,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, QWidget *parent)
     , m_ffmpegVideo(new FFmpegProcess(this))
 {
     setWindowTitle(QStringLiteral("FFmpeg Wrapper"));
-    resize(860, 640);
+    resize(720, 520);
     setAcceptDrops(true);
     setupUi();
 
@@ -99,6 +100,12 @@ void MainWindow::setupUi()
     m_tabWidget->addTab(createImageTab(), QStringLiteral("图片处理"));
     m_tabWidget->addTab(createVideoTab(), QStringLiteral("视频处理"));
     setCentralWidget(m_tabWidget);
+
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.0 &middot; Zane</a>"), this);
+    m_aboutLabel->setCursor(Qt::PointingHandCursor);
+    connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
+    statusBar()->addPermanentWidget(m_aboutLabel);
+    statusBar()->setSizeGripEnabled(false);
 }
 
 // ==================== Image Tab ====================
@@ -122,7 +129,9 @@ QWidget *MainWindow::createImageTab()
     QHBoxLayout *fileBtnLayout = new QHBoxLayout();
     m_imageAddBtn = new QPushButton(QStringLiteral("添加文件"), tab);
     m_imageRemoveBtn = new QPushButton(QStringLiteral("移除选中"), tab);
+    m_imageRemoveBtn->setObjectName(QStringLiteral("dangerBtn"));
     m_imageClearBtn = new QPushButton(QStringLiteral("清空"), tab);
+    m_imageClearBtn->setObjectName(QStringLiteral("dangerBtn"));
     fileBtnLayout->addWidget(m_imageAddBtn);
     fileBtnLayout->addWidget(m_imageRemoveBtn);
     fileBtnLayout->addWidget(m_imageClearBtn);
@@ -211,22 +220,27 @@ QWidget *MainWindow::createImageTab()
     m_imageProgressBar->setRange(0, 100);
     m_imageProgressBar->setValue(0);
     m_imageProgressBar->setTextVisible(true);
+    m_imageProgressBar->setFixedHeight(12);
 
     m_imageStatusLabel = new QLabel(QStringLiteral("就绪"), tab);
-
-    m_imageCmdPreview = new QTextEdit(tab);
-    m_imageCmdPreview->setReadOnly(true);
-    m_imageCmdPreview->setMaximumHeight(28);
-    m_imageCmdPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
     // --- Start/Cancel ---
     QHBoxLayout *actionLayout = new QHBoxLayout();
     m_imageStartBtn = new QPushButton(QStringLiteral("开始处理"), tab);
+    m_imageStartBtn->setFixedHeight(42);
+    m_imageStartBtn->setFixedWidth(160);
+    m_imageStartBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
     m_imageCancelBtn = new QPushButton(QStringLiteral("取消"), tab);
     m_imageCancelBtn->setEnabled(false);
+    m_imageCancelBtn->setFixedHeight(42);
+    m_imageCancelBtn->setFixedWidth(160);
+    m_imageCancelBtn->setObjectName(QStringLiteral("dangerBtn"));
+    m_imageCancelBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
     actionLayout->addStretch();
     actionLayout->addWidget(m_imageStartBtn);
+    actionLayout->addSpacing(16);
     actionLayout->addWidget(m_imageCancelBtn);
+    actionLayout->addStretch();
 
     connect(m_imageStartBtn, &QPushButton::clicked, this, &MainWindow::onImageStart);
     connect(m_imageCancelBtn, &QPushButton::clicked, this, &MainWindow::onImageCancel);
@@ -239,7 +253,6 @@ QWidget *MainWindow::createImageTab()
     mainLayout->addWidget(m_imageResPreview);
     mainLayout->addWidget(m_imageProgressBar);
     mainLayout->addWidget(m_imageStatusLabel);
-    mainLayout->addWidget(m_imageCmdPreview);
     mainLayout->addLayout(actionLayout);
 
     return tab;
@@ -266,7 +279,9 @@ QWidget *MainWindow::createVideoTab()
     QHBoxLayout *fileBtnLayout = new QHBoxLayout();
     m_videoAddBtn = new QPushButton(QStringLiteral("添加文件"), tab);
     m_videoRemoveBtn = new QPushButton(QStringLiteral("移除选中"), tab);
+    m_videoRemoveBtn->setObjectName(QStringLiteral("dangerBtn"));
     m_videoClearBtn = new QPushButton(QStringLiteral("清空"), tab);
+    m_videoClearBtn->setObjectName(QStringLiteral("dangerBtn"));
     fileBtnLayout->addWidget(m_videoAddBtn);
     fileBtnLayout->addWidget(m_videoRemoveBtn);
     fileBtnLayout->addWidget(m_videoClearBtn);
@@ -356,22 +371,27 @@ QWidget *MainWindow::createVideoTab()
     m_videoProgressBar->setRange(0, 100);
     m_videoProgressBar->setValue(0);
     m_videoProgressBar->setTextVisible(true);
+    m_videoProgressBar->setFixedHeight(12);
 
     m_videoStatusLabel = new QLabel(QStringLiteral("就绪"), tab);
-
-    m_videoCmdPreview = new QTextEdit(tab);
-    m_videoCmdPreview->setReadOnly(true);
-    m_videoCmdPreview->setMaximumHeight(28);
-    m_videoCmdPreview->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
     // --- Start/Cancel ---
     QHBoxLayout *actionLayout = new QHBoxLayout();
     m_videoStartBtn = new QPushButton(QStringLiteral("开始处理"), tab);
+    m_videoStartBtn->setFixedHeight(42);
+    m_videoStartBtn->setFixedWidth(160);
+    m_videoStartBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
     m_videoCancelBtn = new QPushButton(QStringLiteral("取消"), tab);
     m_videoCancelBtn->setEnabled(false);
+    m_videoCancelBtn->setFixedHeight(42);
+    m_videoCancelBtn->setFixedWidth(160);
+    m_videoCancelBtn->setObjectName(QStringLiteral("dangerBtn"));
+    m_videoCancelBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
     actionLayout->addStretch();
     actionLayout->addWidget(m_videoStartBtn);
+    actionLayout->addSpacing(16);
     actionLayout->addWidget(m_videoCancelBtn);
+    actionLayout->addStretch();
 
     connect(m_videoStartBtn, &QPushButton::clicked, this, &MainWindow::onVideoStart);
     connect(m_videoCancelBtn, &QPushButton::clicked, this, &MainWindow::onVideoCancel);
@@ -384,7 +404,6 @@ QWidget *MainWindow::createVideoTab()
     mainLayout->addWidget(m_videoInfoPreview);
     mainLayout->addWidget(m_videoProgressBar);
     mainLayout->addWidget(m_videoStatusLabel);
-    mainLayout->addWidget(m_videoCmdPreview);
     mainLayout->addLayout(actionLayout);
 
     return tab;
@@ -426,6 +445,10 @@ void MainWindow::onImageStart()
 {
     if (m_imageFileList->count() == 0) {
         QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先添加文件。"));
+        return;
+    }
+    if (m_imageOutputDir->text().trimmed().isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先选择输出目录。"));
         return;
     }
 
@@ -505,6 +528,10 @@ void MainWindow::onVideoStart()
         QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先添加文件。"));
         return;
     }
+    if (m_videoOutputDir->text().trimmed().isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先选择输出目录。"));
+        return;
+    }
 
     m_videoTaskQueue.clear();
     m_videoCurrentIndex = 0;
@@ -554,6 +581,7 @@ void MainWindow::processNextImage()
     }
 
     if (m_imageCurrentIndex >= m_imageTaskQueue.size()) {
+        m_imageStatusLabel->setText(QStringLiteral("处理完成"));
         showBatchSummary(QStringLiteral("图片"), m_imageCurrentIndex,
                          m_imageSuccessCount, m_imageFailedCount,
                          m_imageSizeBefore, m_imageSizeAfter, m_imageFailedFiles);
@@ -573,7 +601,6 @@ void MainWindow::processNextImage()
         QStringLiteral("处理中 %1/%2").arg(current).arg(total));
 
     QString cmdLine = m_ffmpegPath + QStringLiteral(" ") + args.join(QStringLiteral(" "));
-    m_imageCmdPreview->setPlainText(cmdLine);
     Utils::logToFile(QStringLiteral("[IMAGE] ") + cmdLine);
 
     m_ffmpegImage->start(m_ffmpegPath, args);
@@ -587,6 +614,7 @@ void MainWindow::processNextVideo()
     }
 
     if (m_videoCurrentIndex >= m_videoTaskQueue.size()) {
+        m_videoStatusLabel->setText(QStringLiteral("处理完成"));
         showBatchSummary(QStringLiteral("视频"), m_videoCurrentIndex,
                          m_videoSuccessCount, m_videoFailedCount,
                          m_videoSizeBefore, m_videoSizeAfter, m_videoFailedFiles);
@@ -606,13 +634,26 @@ void MainWindow::processNextVideo()
         QStringLiteral("处理中 %1/%2").arg(current).arg(total));
 
     QString cmdLine = m_ffmpegPath + QStringLiteral(" ") + args.join(QStringLiteral(" "));
-    m_videoCmdPreview->setPlainText(cmdLine);
     Utils::logToFile(QStringLiteral("[VIDEO] ") + cmdLine);
 
     m_ffmpegVideo->start(m_ffmpegPath, args);
 }
 
 // ==================== Results ====================
+
+void MainWindow::showAbout()
+{
+    QString msg = QStringLiteral(
+        "<h3>FFmpeg Wrapper v1.0.0</h3>"
+        "<p>基于 ffmpeg 的桌面端图片/视频批量压缩、缩放、格式转换工具。</p>"
+        "<p><b>技术栈</b><br>"
+        "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg<br>"
+        "MinGW GCC 13.1 &middot; CMake 3.16+<br>"
+        "Bootstrap v5 配色 QSS</p>"
+        "<p><b>作者:</b> Zane</p>"
+    );
+    QMessageBox::about(this, QStringLiteral("关于"), msg);
+}
 
 void MainWindow::showBatchSummary(const QString &type, int total, int success, int failed,
                                   qint64 sizeBefore, qint64 sizeAfter, const QStringList &failedFiles)
@@ -668,7 +709,6 @@ void MainWindow::setImageUiEnabled(bool enabled)
 
     if (enabled) {
         m_imageProgressBar->setValue(100);
-        m_imageCmdPreview->clear();
     }
 }
 
@@ -688,7 +728,6 @@ void MainWindow::setVideoUiEnabled(bool enabled)
 
     if (enabled) {
         m_videoProgressBar->setValue(100);
-        m_videoCmdPreview->clear();
     }
 }
 

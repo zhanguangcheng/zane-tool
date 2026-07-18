@@ -13,7 +13,6 @@
 #include <QCheckBox>
 #include <QSpinBox>
 #include <QGroupBox>
-#include <QTextEdit>
 
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -61,6 +60,7 @@ private:
     void processNextVideo();
     void showBatchSummary(const QString &type, int total, int success, int failed,
                           qint64 sizeBefore, qint64 sizeAfter, const QStringList &failedFiles);
+    void showAbout();
 
     void setImageUiEnabled(bool enabled);
     void setVideoUiEnabled(bool enabled);
@@ -84,10 +84,11 @@ private:
     QPushButton *m_imageOutputBrowse;
     QProgressBar *m_imageProgressBar;
     QLabel *m_imageStatusLabel;
-    QTextEdit *m_imageCmdPreview;
     QPushButton *m_imageStartBtn;
     QPushButton *m_imageCancelBtn;
     QLabel *m_imageResPreview;
+
+    QLabel *m_aboutLabel;
 
     // ---- Video tab widgets ----
     QListWidget *m_videoFileList;
@@ -103,7 +104,6 @@ private:
     QPushButton *m_videoOutputBrowse;
     QProgressBar *m_videoProgressBar;
     QLabel *m_videoStatusLabel;
-    QTextEdit *m_videoCmdPreview;
     QPushButton *m_videoStartBtn;
     QPushButton *m_videoCancelBtn;
     QLabel *m_videoInfoPreview;

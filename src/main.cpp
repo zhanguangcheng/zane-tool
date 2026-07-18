@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
             background: #0d6efd;
             border-radius: 3px;
         }
-        QLineEdit, QSpinBox, QComboBox, QTextEdit {
+        QLineEdit, QSpinBox, QComboBox {
             border: 1px solid #ced4da;
             border-radius: 4px;
             padding: 4px 8px;
