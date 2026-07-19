@@ -13,6 +13,7 @@
 #include <QCheckBox>
 #include <QSpinBox>
 #include <QGroupBox>
+#include <QHBoxLayout>
 
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -22,6 +23,7 @@
 #include "audioprocessor.h"
 
 class FFmpegProcess;
+class ColorPicker;
 
 class MainWindow : public QMainWindow
 {
@@ -55,6 +57,13 @@ private slots:
     void onImageSelectionChanged();
     void onVideoSelectionChanged();
     void onAudioSelectionChanged();
+
+    void onStartPickColor();
+    void onColorPicked(const QColor &color);
+    void onPickCancelled();
+    void onCopyHex();
+    void onCopyRgb();
+    void onHistoryColorClicked(int index);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -90,6 +99,8 @@ private:
     void updateImageResolutionPreview();
     void updateVideoInfoPreview();
     void updateAudioInfoPreview();
+    void updateColorDisplay();
+    void updateColorHistory();
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -149,6 +160,23 @@ private:
     QPushButton *m_audioStartBtn;
     QPushButton *m_audioCancelBtn;
     QLabel *m_audioInfoPreview;
+
+    // ---- ColorPicker tab widgets ----
+    QPushButton *m_pickColorBtn;
+    QLabel *m_colorSwatch;
+    QLabel *m_hexLabel;
+    QLabel *m_hexValue;
+    QLabel *m_rgbLabel;
+    QLabel *m_rgbValue;
+    QLabel *m_hslLabel;
+    QLabel *m_hslValue;
+    QPushButton *m_copyHexBtn;
+    QPushButton *m_copyRgbBtn;
+    QWidget *m_historyContainer;
+    QHBoxLayout *m_historyLayout;
+    QColor m_pickedColor;
+    QList<QColor> m_colorHistory;
+    ColorPicker *m_colorPicker;
 
     // ---- Task queues ----
     QList<ImageTask> m_imageTaskQueue;
