@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QListWidget>
+#include <QTableWidget>
 #include <QStackedWidget>
 #include <QPushButton>
 #include <QSlider>
@@ -23,6 +24,7 @@
 #include "imageprocessor.h"
 #include "videoprocessor.h"
 #include "audioprocessor.h"
+#include "stopwatchtimer.h"
 
 class FFmpegProcess;
 class ColorPicker;
@@ -73,6 +75,15 @@ private slots:
     void onTransparencySliderChanged(int value);
     void onTransparencyPickWindow();
     void onWindowPicked(HWND hwnd);
+
+    void onTimerStart();
+    void onTimerPause();
+    void onTimerStop();
+    void onTimerLap();
+    void onTimerClearLaps();
+    void onTimerTick(const QString &formatted);
+    void onTimerStateChanged(StopwatchTimer::State state);
+    void onTimerLapRecorded(const StopwatchTimer::LapEntry &entry);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -197,6 +208,16 @@ private:
     HWND m_transparencyTargetHwnd;
     LONG_PTR m_transparencyOriginalExStyle;
     WindowPicker *m_windowPicker;
+
+    // ---- Timer tab widgets ----
+    StopwatchTimer *m_stopwatch;
+    QLabel *m_timerDisplay;
+    QPushButton *m_timerStartBtn;
+    QPushButton *m_timerPauseBtn;
+    QPushButton *m_timerStopBtn;
+    QPushButton *m_timerLapBtn;
+    QTableWidget *m_timerLapList;
+    QPushButton *m_timerClearBtn;
 
     // ---- Task queues ----
     QList<ImageTask> m_imageTaskQueue;
