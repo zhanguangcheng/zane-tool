@@ -229,7 +229,7 @@ void MainWindow::setupUi()
 
     m_stackedWidget->setCurrentIndex(0);
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.1.0 &middot; Zane</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v0.1.0 &middot; Zane</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -1740,7 +1740,7 @@ QWidget *MainWindow::createDownloadPage()
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.1.0</h3>"
+        "<h3>Zane Tool v0.1.0</h3>"
         "<p>基于 ffmpeg 的桌面端图片/视频批量压缩、缩放、格式转换工具。</p>"
         "<p><b>技术栈</b><br>"
         "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg<br>"
