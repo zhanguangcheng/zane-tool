@@ -1,6 +1,6 @@
-; FFmpeg Wrapper NSIS Installer Script
+; Zane Tool NSIS Installer Script
 
-!define PRODUCT_NAME "FFmpeg Wrapper"
+!define PRODUCT_NAME "Zane Tool"
 !define PRODUCT_VERSION "1.0.0"
 !define PRODUCT_PUBLISHER "Zane"
 !define PRODUCT_WEB_SITE ""
@@ -12,8 +12,8 @@ Unicode true
 SetCompressor lzma
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\dist\ffmpeg-wrapper-${PRODUCT_VERSION}-setup.exe"
-InstallDir "$PROGRAMFILES64\ffmpeg-wrapper"
+OutFile "..\dist\ZaneTool-${PRODUCT_VERSION}-setup.exe"
+InstallDir "$PROGRAMFILES64\ZaneTool"
 RequestExecutionLevel admin
 
 !include "MUI2.nsh"
@@ -35,13 +35,13 @@ RequestExecutionLevel admin
 Section "Install"
     SetOutPath "$INSTDIR"
 
-    File /r "ffmpeg-wrapper\*"
+    File /r "ZaneTool\*"
 
     CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ffmpeg-wrapper.exe"
-    CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ffmpeg-wrapper.exe"
+    CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ZaneTool.exe"
+    CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ZaneTool.exe"
 
-    WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\ffmpeg-wrapper.exe"
+    WriteRegStr HKLM "${PRODUCT_DIR_REGKEY}" "" "$INSTDIR\ZaneTool.exe"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe"
     WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"

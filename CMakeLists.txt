@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ffmpeg-wrapper VERSION 1.0.0 LANGUAGES CXX)
+project(ZaneTool VERSION 1.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,6 +14,7 @@ set(SOURCES
     src/ffmpegprocess.cpp
     src/imageprocessor.cpp
     src/videoprocessor.cpp
+    src/audioprocessor.cpp
     src/utils.cpp
     src/resources.qrc
 )
@@ -27,6 +28,7 @@ set(HEADERS
     src/ffmpegprocess.h
     src/imageprocessor.h
     src/videoprocessor.h
+    src/audioprocessor.h
     src/utils.h
 )
 
@@ -38,5 +40,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
-    OUTPUT_NAME "ffmpeg-wrapper"
+    OUTPUT_NAME "ZaneTool"
 )

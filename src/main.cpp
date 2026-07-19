@@ -9,8 +9,8 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("FFmpeg Wrapper"));
-    app.setApplicationVersion(QStringLiteral("1.0.0"));
+    app.setApplicationName(QStringLiteral("Zane Tool"));
+    app.setApplicationVersion(QStringLiteral("1.1.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(
@@ -106,23 +106,24 @@ int main(int argc, char *argv[])
             background-color: #0d6efd;
             border-radius: 3px;
         }
-        QTabWidget::pane {
-            border: 1px solid #dee2e6;
-            background-color: #f8f9fa;
-        }
-        QTabBar::tab {
-            background-color: #e9ecef;
-            color: #212529;
-            padding: 6px 16px;
-            border: 1px solid #dee2e6;
-            border-bottom: none;
-            border-top-left-radius: 4px;
-            border-top-right-radius: 4px;
-            margin-right: 2px;
-        }
-        QTabBar::tab:selected {
+        QListWidget#sidebar {
             background-color: #ffffff;
-            border-bottom: 2px solid #0d6efd;
+            border: none;
+            border-right: 1px solid #dee2e6;
+            font-size: 13px;
+            padding: 8px 0;
+            outline: none;
+        }
+        QListWidget#sidebar::item {
+            padding: 7px 0px;
+            color: #212529;
+        }
+        QListWidget#sidebar::item:selected {
+            background-color: #e7f1ff;
+            color: #0d6efd;
+        }
+        QStackedWidget {
+            background-color: #f8f9fa;
         }
         QLabel {
             color: #212529;

@@ -21,8 +21,10 @@ MainWindow::MainWindow(const QString &ffmpegPath, QWidget *parent)
     , m_ffmpegPath(ffmpegPath)
     , m_imageCurrentIndex(0)
     , m_videoCurrentIndex(0)
+    , m_audioCurrentIndex(0)
     , m_imageCancelling(false)
     , m_videoCancelling(false)
+    , m_audioCancelling(false)
     , m_imageSizeBefore(0)
     , m_imageSizeAfter(0)
     , m_imageSuccessCount(0)
@@ -31,11 +33,16 @@ MainWindow::MainWindow(const QString &ffmpegPath, QWidget *parent)
     , m_videoSizeAfter(0)
     , m_videoSuccessCount(0)
     , m_videoFailedCount(0)
+    , m_audioSizeBefore(0)
+    , m_audioSizeAfter(0)
+    , m_audioSuccessCount(0)
+    , m_audioFailedCount(0)
     , m_ffmpegImage(new FFmpegProcess(this))
     , m_ffmpegVideo(new FFmpegProcess(this))
+    , m_ffmpegAudio(new FFmpegProcess(this))
 {
-    setWindowTitle(QStringLiteral("FFmpeg Wrapper"));
-    resize(720, 520);
+    setWindowTitle(QStringLiteral("Zane Tool"));
+    resize(820, 560);
     setAcceptDrops(true);
     setupUi();
 
@@ -92,20 +99,129 @@ MainWindow::MainWindow(const QString &ffmpegPath, QWidget *parent)
     connect(m_ffmpegVideo, &FFmpegProcess::errorOccurred, this, [this](const QString &msg) {
         m_videoStatusLabel->setText(QStringLiteral("错误: ") + msg);
     });
+
+    connect(m_ffmpegAudio, &FFmpegProcess::finished, this, [this](bool success, int) {
+        if (m_audioCancelling) return;
+        QFileInfo fi(m_audioTaskQueue[m_audioCurrentIndex].inputPath);
+        qint64 inputSize = fi.size();
+        QFileInfo fo(AudioProcessor::buildOutputPath(m_audioTaskQueue[m_audioCurrentIndex]));
+        qint64 outputSize = fo.exists() ? fo.size() : 0;
+
+        if (success) {
+            m_audioSuccessCount++;
+            m_audioSizeBefore += inputSize;
+            m_audioSizeAfter += outputSize;
+            Utils::logToFile(QStringLiteral("[AUDIO] OK: %1 -> %2 (%3 -> %4)")
+                .arg(fi.fileName(), fo.fileName())
+                .arg(Utils::formatFileSize(inputSize), Utils::formatFileSize(outputSize)));
+        } else {
+            m_audioFailedCount++;
+            m_audioFailedFiles.append(fi.fileName());
+            Utils::logToFile(QStringLiteral("[AUDIO] FAIL: %1").arg(fi.fileName()));
+        }
+        m_audioCurrentIndex++;
+        processNextAudio();
+    });
+
+    connect(m_ffmpegAudio, &FFmpegProcess::errorOccurred, this, [this](const QString &msg) {
+        m_audioStatusLabel->setText(QStringLiteral("错误: ") + msg);
+    });
 }
 
 void MainWindow::setupUi()
 {
-    m_tabWidget = new QTabWidget(this);
-    m_tabWidget->addTab(createImageTab(), QStringLiteral("图片处理"));
-    m_tabWidget->addTab(createVideoTab(), QStringLiteral("视频处理"));
-    setCentralWidget(m_tabWidget);
+    QWidget *centralWidget = new QWidget(this);
+    QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.0 &middot; Zane</a>"), this);
+    m_sidebar = new QListWidget(centralWidget);
+    m_sidebar->setObjectName(QStringLiteral("sidebar"));
+    m_sidebar->setFixedWidth(160);
+    m_sidebar->setFocusPolicy(Qt::NoFocus);
+    m_sidebar->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_sidebar->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    m_stackedWidget = new QStackedWidget(centralWidget);
+
+    mainLayout->addWidget(m_sidebar);
+    mainLayout->addWidget(m_stackedWidget, 1);
+
+    setCentralWidget(centralWidget);
+
+    setupSidebar();
+
+    m_stackedWidget->addWidget(createImageTab());
+    m_stackedWidget->addWidget(createVideoTab());
+    m_stackedWidget->addWidget(createAudioTab());
+    m_stackedWidget->addWidget(createColorPickerPage());
+    m_stackedWidget->addWidget(createStickyNotePage());
+    m_stackedWidget->addWidget(createTransparencyPage());
+    m_stackedWidget->addWidget(createTimerPage());
+    m_stackedWidget->addWidget(createBase64Page());
+    m_stackedWidget->addWidget(createTimestampPage());
+    m_stackedWidget->addWidget(createCronPage());
+    m_stackedWidget->addWidget(createJwtPage());
+    m_stackedWidget->addWidget(createDownloadPage());
+
+    m_stackedWidget->setCurrentIndex(0);
+
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.1.0 &middot; Zane</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
     statusBar()->setSizeGripEnabled(false);
+}
+
+void MainWindow::setupSidebar()
+{
+    auto addCategory = [this](const QString &name) {
+        QListWidgetItem *item = new QListWidgetItem(name);
+        item->setFlags(Qt::NoItemFlags);
+        item->setData(Qt::UserRole, -1);
+        QFont f = item->font();
+        f.setBold(true);
+        f.setPointSize(10);
+        item->setFont(f);
+        item->setForeground(QColor(QStringLiteral("#6c757d")));
+        m_sidebar->addItem(item);
+    };
+
+    auto addTool = [this](const QString &name, int pageIndex) {
+        QListWidgetItem *item = new QListWidgetItem(QStringLiteral("      ") + name);
+        item->setData(Qt::UserRole, pageIndex);
+        m_sidebar->addItem(item);
+    };
+
+    addCategory(QStringLiteral("\U0001F3AC 媒体工具"));
+    addTool(QStringLiteral("图片处理"), 0);
+    addTool(QStringLiteral("视频处理"), 1);
+    addTool(QStringLiteral("音频处理"), 2);
+
+    addCategory(QStringLiteral("\u2699\uFE0F 系统工具"));
+    addTool(QStringLiteral("屏幕取色"), 3);
+    addTool(QStringLiteral("贴图"), 4);
+    addTool(QStringLiteral("窗口透明"), 5);
+    addTool(QStringLiteral("计时器"), 6);
+
+    addCategory(QStringLiteral("\U0001F527 开发工具"));
+    addTool(QStringLiteral("图片转Base64"), 7);
+    addTool(QStringLiteral("时间戳转换"), 8);
+    addTool(QStringLiteral("定时任务"), 9);
+    addTool(QStringLiteral("JWT 解析"), 10);
+
+    addCategory(QStringLiteral("\U0001F310 网络工具"));
+    addTool(QStringLiteral("批量下载"), 11);
+
+    connect(m_sidebar, &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row < 0) return;
+        QListWidgetItem *item = m_sidebar->item(row);
+        int idx = item->data(Qt::UserRole).toInt();
+        if (idx >= 0)
+            m_stackedWidget->setCurrentIndex(idx);
+    });
+
+    m_sidebar->setCurrentRow(1);
 }
 
 // ==================== Image Tab ====================
@@ -409,6 +525,158 @@ QWidget *MainWindow::createVideoTab()
     return tab;
 }
 
+// ==================== Audio Tab ====================
+
+QWidget *MainWindow::createAudioTab()
+{
+    QWidget *tab = new QWidget(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(tab);
+    mainLayout->setSpacing(10);
+
+    // --- File list section ---
+    m_audioFileList = new QListWidget(tab);
+    m_audioFileList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_audioFileList->setMinimumHeight(60);
+    m_audioFileList->setAcceptDrops(true);
+    m_audioFileList->setDragDropMode(QAbstractItemView::DropOnly);
+
+    connect(m_audioFileList, &QListWidget::itemSelectionChanged,
+            this, &MainWindow::onAudioSelectionChanged);
+
+    QHBoxLayout *fileBtnLayout = new QHBoxLayout();
+    m_audioAddBtn = new QPushButton(QStringLiteral("添加文件"), tab);
+    m_audioRemoveBtn = new QPushButton(QStringLiteral("移除选中"), tab);
+    m_audioRemoveBtn->setObjectName(QStringLiteral("dangerBtn"));
+    m_audioClearBtn = new QPushButton(QStringLiteral("清空"), tab);
+    m_audioClearBtn->setObjectName(QStringLiteral("dangerBtn"));
+    fileBtnLayout->addWidget(m_audioAddBtn);
+    fileBtnLayout->addWidget(m_audioRemoveBtn);
+    fileBtnLayout->addWidget(m_audioClearBtn);
+    fileBtnLayout->addStretch();
+
+    connect(m_audioAddBtn, &QPushButton::clicked, this, &MainWindow::onAudioAddFiles);
+    connect(m_audioRemoveBtn, &QPushButton::clicked, this, &MainWindow::onAudioRemoveSelected);
+    connect(m_audioClearBtn, &QPushButton::clicked, this, &MainWindow::onAudioClearFiles);
+
+    // --- Settings row ---
+    QHBoxLayout *settingsLayout = new QHBoxLayout();
+
+    // Format group
+    QGroupBox *formatGroup = new QGroupBox(QStringLiteral("输出格式"), tab);
+    QHBoxLayout *formatLayout = new QHBoxLayout(formatGroup);
+    m_audioFormatCombo = new QComboBox(tab);
+    m_audioFormatCombo->addItem(QStringLiteral("保持原格式"), QString());
+    m_audioFormatCombo->addItem(QStringLiteral("MP3"), QStringLiteral("mp3"));
+    m_audioFormatCombo->addItem(QStringLiteral("AAC (M4A)"), QStringLiteral("m4a"));
+    m_audioFormatCombo->addItem(QStringLiteral("FLAC"), QStringLiteral("flac"));
+    m_audioFormatCombo->addItem(QStringLiteral("WAV"), QStringLiteral("wav"));
+    m_audioFormatCombo->addItem(QStringLiteral("OGG (Vorbis)"), QStringLiteral("ogg"));
+    m_audioFormatCombo->addItem(QStringLiteral("Opus"), QStringLiteral("opus"));
+    formatLayout->addWidget(m_audioFormatCombo);
+
+    // Bitrate group
+    QGroupBox *bitrateGroup = new QGroupBox(QStringLiteral("码率"), tab);
+    QHBoxLayout *bitrateLayout = new QHBoxLayout(bitrateGroup);
+    m_audioBitrateCombo = new QComboBox(tab);
+    m_audioBitrateCombo->addItem(QStringLiteral("64 kbps"), QStringLiteral("64k"));
+    m_audioBitrateCombo->addItem(QStringLiteral("96 kbps"), QStringLiteral("96k"));
+    m_audioBitrateCombo->addItem(QStringLiteral("128 kbps"), QStringLiteral("128k"));
+    m_audioBitrateCombo->addItem(QStringLiteral("192 kbps"), QStringLiteral("192k"));
+    m_audioBitrateCombo->addItem(QStringLiteral("256 kbps"), QStringLiteral("256k"));
+    m_audioBitrateCombo->addItem(QStringLiteral("320 kbps"), QStringLiteral("320k"));
+    m_audioBitrateCombo->setCurrentIndex(3);
+    bitrateLayout->addWidget(m_audioBitrateCombo);
+
+    settingsLayout->addWidget(formatGroup);
+    settingsLayout->addWidget(bitrateGroup);
+    settingsLayout->setStretch(0, 1);
+    settingsLayout->setStretch(1, 1);
+
+    // --- Advanced row ---
+    QHBoxLayout *advancedLayout = new QHBoxLayout();
+
+    // Sample rate group
+    QGroupBox *sampleRateGroup = new QGroupBox(QStringLiteral("采样率"), tab);
+    QHBoxLayout *sampleRateLayout = new QHBoxLayout(sampleRateGroup);
+    m_audioSampleRateCombo = new QComboBox(tab);
+    m_audioSampleRateCombo->addItem(QStringLiteral("保持原样"), QString());
+    m_audioSampleRateCombo->addItem(QStringLiteral("22050 Hz"), QStringLiteral("22050"));
+    m_audioSampleRateCombo->addItem(QStringLiteral("44100 Hz"), QStringLiteral("44100"));
+    m_audioSampleRateCombo->addItem(QStringLiteral("48000 Hz"), QStringLiteral("48000"));
+    sampleRateLayout->addWidget(m_audioSampleRateCombo);
+
+    // Channels group
+    QGroupBox *channelsGroup = new QGroupBox(QStringLiteral("声道"), tab);
+    QHBoxLayout *channelsLayout = new QHBoxLayout(channelsGroup);
+    m_audioChannelsCombo = new QComboBox(tab);
+    m_audioChannelsCombo->addItem(QStringLiteral("保持原样"), QString());
+    m_audioChannelsCombo->addItem(QStringLiteral("单声道"), QStringLiteral("1"));
+    m_audioChannelsCombo->addItem(QStringLiteral("立体声"), QStringLiteral("2"));
+    channelsLayout->addWidget(m_audioChannelsCombo);
+
+    advancedLayout->addWidget(sampleRateGroup);
+    advancedLayout->addWidget(channelsGroup);
+    advancedLayout->setStretch(0, 1);
+    advancedLayout->setStretch(1, 1);
+
+    // --- Output directory ---
+    QGroupBox *outDirGroup = new QGroupBox(QStringLiteral("输出目录"), tab);
+    QHBoxLayout *outDirLayout = new QHBoxLayout(outDirGroup);
+    m_audioOutputDir = new QLineEdit(tab);
+    m_audioOutputBrowse = new QPushButton(QStringLiteral("浏览"), tab);
+    outDirLayout->addWidget(m_audioOutputDir);
+    outDirLayout->addWidget(m_audioOutputBrowse);
+
+    connect(m_audioOutputBrowse, &QPushButton::clicked, this, &MainWindow::onAudioOutputBrowse);
+
+    // --- Info preview ---
+    m_audioInfoPreview = new QLabel(tab);
+    m_audioInfoPreview->setVisible(false);
+
+    // --- Progress / Status ---
+    m_audioProgressBar = new QProgressBar(tab);
+    m_audioProgressBar->setRange(0, 100);
+    m_audioProgressBar->setValue(0);
+    m_audioProgressBar->setTextVisible(true);
+    m_audioProgressBar->setFixedHeight(12);
+
+    m_audioStatusLabel = new QLabel(QStringLiteral("就绪"), tab);
+
+    // --- Start/Cancel ---
+    QHBoxLayout *actionLayout = new QHBoxLayout();
+    m_audioStartBtn = new QPushButton(QStringLiteral("开始处理"), tab);
+    m_audioStartBtn->setFixedHeight(42);
+    m_audioStartBtn->setFixedWidth(160);
+    m_audioStartBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
+    m_audioCancelBtn = new QPushButton(QStringLiteral("取消"), tab);
+    m_audioCancelBtn->setEnabled(false);
+    m_audioCancelBtn->setFixedHeight(42);
+    m_audioCancelBtn->setFixedWidth(160);
+    m_audioCancelBtn->setObjectName(QStringLiteral("dangerBtn"));
+    m_audioCancelBtn->setStyleSheet(QStringLiteral("font-size: 15px; font-weight: bold;"));
+    actionLayout->addStretch();
+    actionLayout->addWidget(m_audioStartBtn);
+    actionLayout->addSpacing(16);
+    actionLayout->addWidget(m_audioCancelBtn);
+    actionLayout->addStretch();
+
+    connect(m_audioStartBtn, &QPushButton::clicked, this, &MainWindow::onAudioStart);
+    connect(m_audioCancelBtn, &QPushButton::clicked, this, &MainWindow::onAudioCancel);
+
+    // --- Assemble ---
+    mainLayout->addWidget(m_audioFileList);
+    mainLayout->addLayout(fileBtnLayout);
+    mainLayout->addLayout(settingsLayout);
+    mainLayout->addLayout(advancedLayout);
+    mainLayout->addWidget(outDirGroup);
+    mainLayout->addWidget(m_audioInfoPreview);
+    mainLayout->addWidget(m_audioProgressBar);
+    mainLayout->addWidget(m_audioStatusLabel);
+    mainLayout->addLayout(actionLayout);
+
+    return tab;
+}
+
 // ==================== Image Slots ====================
 
 void MainWindow::onImageAddFiles()
@@ -571,6 +839,87 @@ void MainWindow::onVideoSelectionChanged()
     updateVideoInfoPreview();
 }
 
+// ==================== Audio Slots ====================
+
+void MainWindow::onAudioAddFiles()
+{
+    QStringList files = QFileDialog::getOpenFileNames(
+        this, QStringLiteral("选择音频文件"), QString(),
+        QStringLiteral("音频文件 (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.wma);;视频文件 (*.mp4 *.webm *.avi *.mov *.mkv);;所有文件 (*.*)"));
+    for (const QString &f : files) {
+        m_audioFileList->addItem(f);
+    }
+}
+
+void MainWindow::onAudioRemoveSelected()
+{
+    QList<QListWidgetItem *> items = m_audioFileList->selectedItems();
+    for (QListWidgetItem *item : items) {
+        delete m_audioFileList->takeItem(m_audioFileList->row(item));
+    }
+}
+
+void MainWindow::onAudioClearFiles()
+{
+    m_audioFileList->clear();
+}
+
+void MainWindow::onAudioOutputBrowse()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择输出目录"));
+    if (!dir.isEmpty())
+        m_audioOutputDir->setText(dir);
+}
+
+void MainWindow::onAudioStart()
+{
+    if (m_audioFileList->count() == 0) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先添加文件。"));
+        return;
+    }
+    if (m_audioOutputDir->text().trimmed().isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先选择输出目录。"));
+        return;
+    }
+
+    m_audioTaskQueue.clear();
+    m_audioCurrentIndex = 0;
+    m_audioCancelling = false;
+    m_audioSuccessCount = 0;
+    m_audioFailedCount = 0;
+    m_audioSizeBefore = 0;
+    m_audioSizeAfter = 0;
+    m_audioFailedFiles.clear();
+
+    for (int i = 0; i < m_audioFileList->count(); ++i) {
+        AudioTask task;
+        task.inputPath = m_audioFileList->item(i)->text();
+        task.outputDir = m_audioOutputDir->text();
+        task.format = m_audioFormatCombo->currentData().toString();
+        task.bitrate = m_audioBitrateCombo->currentData().toString();
+        task.sampleRate = m_audioSampleRateCombo->currentData().toString();
+        task.channels = m_audioChannelsCombo->currentData().toString();
+        m_audioTaskQueue.append(task);
+    }
+
+    setAudioUiEnabled(false);
+    processNextAudio();
+}
+
+void MainWindow::onAudioCancel()
+{
+    m_audioCancelling = true;
+    m_ffmpegAudio->cancel();
+    m_audioStatusLabel->setText(QStringLiteral("已取消"));
+    setAudioUiEnabled(true);
+    m_audioProgressBar->setValue(m_audioTaskQueue.isEmpty() ? 0 : m_audioCurrentIndex * 100 / m_audioTaskQueue.size());
+}
+
+void MainWindow::onAudioSelectionChanged()
+{
+    updateAudioInfoPreview();
+}
+
 // ==================== Batch Processing ====================
 
 void MainWindow::processNextImage()
@@ -639,12 +988,182 @@ void MainWindow::processNextVideo()
     m_ffmpegVideo->start(m_ffmpegPath, args);
 }
 
+void MainWindow::processNextAudio()
+{
+    if (m_audioCancelling) {
+        setAudioUiEnabled(true);
+        return;
+    }
+
+    if (m_audioCurrentIndex >= m_audioTaskQueue.size()) {
+        m_audioStatusLabel->setText(QStringLiteral("处理完成"));
+        showBatchSummary(QStringLiteral("音频"), m_audioCurrentIndex,
+                         m_audioSuccessCount, m_audioFailedCount,
+                         m_audioSizeBefore, m_audioSizeAfter, m_audioFailedFiles);
+        setAudioUiEnabled(true);
+        return;
+    }
+
+    const AudioTask &task = m_audioTaskQueue[m_audioCurrentIndex];
+    QStringList args = AudioProcessor::buildArgs(task);
+    QString outputPath = AudioProcessor::buildOutputPath(task);
+    args << outputPath;
+
+    int total = m_audioTaskQueue.size();
+    int current = m_audioCurrentIndex + 1;
+    m_audioProgressBar->setValue(total > 0 ? (m_audioCurrentIndex * 100 / total) : 0);
+    m_audioStatusLabel->setText(
+        QStringLiteral("处理中 %1/%2").arg(current).arg(total));
+
+    QString cmdLine = m_ffmpegPath + QStringLiteral(" ") + args.join(QStringLiteral(" "));
+    Utils::logToFile(QStringLiteral("[AUDIO] ") + cmdLine);
+
+    m_ffmpegAudio->start(m_ffmpegPath, args);
+}
+
+// ==================== New Tool Pages (Placeholders) ====================
+
+QWidget *MainWindow::createColorPickerPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("屏幕取色"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createStickyNotePage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("贴图（截图贴图）"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createTransparencyPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("窗口透明"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createTimerPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("计时器"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createBase64Page()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("图片转Base64"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createTimestampPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("时间戳转换"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createCronPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("定时任务（Cron 解析）"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createJwtPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("JWT 解析"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
+QWidget *MainWindow::createDownloadPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("批量下载"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
+}
+
 // ==================== Results ====================
 
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>FFmpeg Wrapper v1.0.0</h3>"
+        "<h3>Zane Tool v1.1.0</h3>"
         "<p>基于 ffmpeg 的桌面端图片/视频批量压缩、缩放、格式转换工具。</p>"
         "<p><b>技术栈</b><br>"
         "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg<br>"
@@ -731,6 +1250,25 @@ void MainWindow::setVideoUiEnabled(bool enabled)
     }
 }
 
+void MainWindow::setAudioUiEnabled(bool enabled)
+{
+    m_audioAddBtn->setEnabled(enabled);
+    m_audioRemoveBtn->setEnabled(enabled);
+    m_audioClearBtn->setEnabled(enabled);
+    m_audioFormatCombo->setEnabled(enabled);
+    m_audioBitrateCombo->setEnabled(enabled);
+    m_audioSampleRateCombo->setEnabled(enabled);
+    m_audioChannelsCombo->setEnabled(enabled);
+    m_audioOutputDir->setEnabled(enabled);
+    m_audioOutputBrowse->setEnabled(enabled);
+    m_audioStartBtn->setEnabled(enabled);
+    m_audioCancelBtn->setEnabled(!enabled);
+
+    if (enabled) {
+        m_audioProgressBar->setValue(100);
+    }
+}
+
 void MainWindow::updateImageResolutionPreview()
 {
     if (m_imageFileList->selectedItems().size() != 1) {
@@ -749,6 +1287,15 @@ void MainWindow::updateVideoInfoPreview()
     m_videoInfoPreview->setVisible(false);
 }
 
+void MainWindow::updateAudioInfoPreview()
+{
+    if (m_audioFileList->selectedItems().size() != 1) {
+        m_audioInfoPreview->setVisible(false);
+        return;
+    }
+    m_audioInfoPreview->setVisible(false);
+}
+
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 {
     if (event->mimeData()->hasUrls())
@@ -760,8 +1307,16 @@ void MainWindow::dropEvent(QDropEvent *event)
     const QMimeData *mimeData = event->mimeData();
     if (!mimeData->hasUrls()) return;
 
-    int tabIndex = m_tabWidget->currentIndex();
-    QListWidget *list = (tabIndex == 0) ? m_imageFileList : m_videoFileList;
+    int pageIndex = m_stackedWidget->currentIndex();
+    QListWidget *list = nullptr;
+    if (pageIndex == 0)
+        list = m_imageFileList;
+    else if (pageIndex == 1)
+        list = m_videoFileList;
+    else if (pageIndex == 2)
+        list = m_audioFileList;
+
+    if (!list) return;
 
     for (const QUrl &url : mimeData->urls()) {
         if (url.isLocalFile())

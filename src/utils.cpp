@@ -50,11 +50,29 @@ QString defaultImageFormat(const QString &filePath)
     return fmt;
 }
 
+QString detectAudioFormat(const QString &filePath)
+{
+    QFileInfo fi(filePath);
+    QString ext = fi.suffix().toLower();
+    static const QStringList audioExts = {"mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "wma"};
+    if (audioExts.contains(ext))
+        return ext == QStringLiteral("wma") ? QStringLiteral("mp3") : ext;
+    return QStringLiteral("mp3");
+}
+
 QString defaultVideoFormat(const QString &filePath)
 {
     QString fmt = detectVideoFormat(filePath);
     if (fmt == QStringLiteral("mkv"))
         return QStringLiteral("mp4");
+    return fmt;
+}
+
+QString defaultAudioFormat(const QString &filePath)
+{
+    QString fmt = detectAudioFormat(filePath);
+    if (fmt == QStringLiteral("wma"))
+        return QStringLiteral("mp3");
     return fmt;
 }
 

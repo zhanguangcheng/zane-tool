@@ -2,8 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTabWidget>
 #include <QListWidget>
+#include <QStackedWidget>
 #include <QPushButton>
 #include <QSlider>
 #include <QLabel>
@@ -19,6 +19,7 @@
 
 #include "imageprocessor.h"
 #include "videoprocessor.h"
+#include "audioprocessor.h"
 
 class FFmpegProcess;
 
@@ -44,8 +45,16 @@ private slots:
     void onVideoStart();
     void onVideoCancel();
 
+    void onAudioAddFiles();
+    void onAudioRemoveSelected();
+    void onAudioClearFiles();
+    void onAudioOutputBrowse();
+    void onAudioStart();
+    void onAudioCancel();
+
     void onImageSelectionChanged();
     void onVideoSelectionChanged();
+    void onAudioSelectionChanged();
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -53,22 +62,38 @@ protected:
 
 private:
     void setupUi();
+    void setupSidebar();
     QWidget *createImageTab();
     QWidget *createVideoTab();
+    QWidget *createAudioTab();
+
+    QWidget *createColorPickerPage();
+    QWidget *createStickyNotePage();
+    QWidget *createTransparencyPage();
+    QWidget *createTimerPage();
+    QWidget *createBase64Page();
+    QWidget *createTimestampPage();
+    QWidget *createCronPage();
+    QWidget *createJwtPage();
+    QWidget *createDownloadPage();
 
     void processNextImage();
     void processNextVideo();
+    void processNextAudio();
     void showBatchSummary(const QString &type, int total, int success, int failed,
                           qint64 sizeBefore, qint64 sizeAfter, const QStringList &failedFiles);
     void showAbout();
 
     void setImageUiEnabled(bool enabled);
     void setVideoUiEnabled(bool enabled);
+    void setAudioUiEnabled(bool enabled);
     void updateImageResolutionPreview();
     void updateVideoInfoPreview();
+    void updateAudioInfoPreview();
 
     QString m_ffmpegPath;
-    QTabWidget *m_tabWidget;
+    QListWidget *m_sidebar;
+    QStackedWidget *m_stackedWidget;
 
     // ---- Image tab widgets ----
     QListWidget *m_imageFileList;
@@ -108,13 +133,33 @@ private:
     QPushButton *m_videoCancelBtn;
     QLabel *m_videoInfoPreview;
 
+    // ---- Audio tab widgets ----
+    QListWidget *m_audioFileList;
+    QPushButton *m_audioAddBtn;
+    QPushButton *m_audioRemoveBtn;
+    QPushButton *m_audioClearBtn;
+    QComboBox *m_audioFormatCombo;
+    QComboBox *m_audioBitrateCombo;
+    QComboBox *m_audioSampleRateCombo;
+    QComboBox *m_audioChannelsCombo;
+    QLineEdit *m_audioOutputDir;
+    QPushButton *m_audioOutputBrowse;
+    QProgressBar *m_audioProgressBar;
+    QLabel *m_audioStatusLabel;
+    QPushButton *m_audioStartBtn;
+    QPushButton *m_audioCancelBtn;
+    QLabel *m_audioInfoPreview;
+
     // ---- Task queues ----
     QList<ImageTask> m_imageTaskQueue;
     QList<VideoTask> m_videoTaskQueue;
+    QList<AudioTask> m_audioTaskQueue;
     int m_imageCurrentIndex;
     int m_videoCurrentIndex;
+    int m_audioCurrentIndex;
     bool m_imageCancelling;
     bool m_videoCancelling;
+    bool m_audioCancelling;
 
     // ---- Statistics ----
     qint64 m_imageSizeBefore;
@@ -129,8 +174,15 @@ private:
     int m_videoFailedCount;
     QStringList m_videoFailedFiles;
 
+    qint64 m_audioSizeBefore;
+    qint64 m_audioSizeAfter;
+    int m_audioSuccessCount;
+    int m_audioFailedCount;
+    QStringList m_audioFailedFiles;
+
     FFmpegProcess *m_ffmpegImage;
     FFmpegProcess *m_ffmpegVideo;
+    FFmpegProcess *m_ffmpegAudio;
 };
 
 #endif // MAINWINDOW_H

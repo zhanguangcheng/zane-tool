@@ -1,6 +1,6 @@
 build/
 logs/
 dist/
-installer/ffmpeg-wrapper/
+installer/ZaneTool/
 *.user
 *.log

@@ -1,4 +1,4 @@
-# ffmpeg-wrapper
+# Zane Tool
 
 基于 Qt6 的桌面端 ffmpeg 图形化批量处理工具，支持图片与视频的压缩、缩放、格式转换。
 
@@ -17,7 +17,7 @@
 ## 项目结构
 
 ```
-ffmpeg-wrapper/
+ZaneTool/
 ├── CMakeLists.txt              # 构建配置
 ├── ffmpeg.exe                  # 捆绑的 ffmpeg 二进制
 ├── src/
@@ -30,7 +30,7 @@ ffmpeg-wrapper/
 ├── build/                      # 编译输出
 ├── installer/
 │   ├── installer.nsi           # NSIS 安装脚本
-│   └── ffmpeg-wrapper/         # 打包阶段目录
+│   └── ZaneTool/         # 打包阶段目录
 └── dist/                       # 发布产物 (.zip)
 ```
 
@@ -192,20 +192,20 @@ cmake -S . -B build -G "MinGW Makefiles" `
   -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/mingw_64" `
   -DCMAKE_CXX_COMPILER="C:/Qt/Tools/mingw1310_64/bin/c++.exe"
 
-cmake --build build --target ffmpeg-wrapper
+cmake --build build --target ZaneTool
 ```
 
 构建后运行 windeployqt 部署 Qt 运行时 DLL：
 
 ```powershell
-windeployqt build\ffmpeg-wrapper.exe --no-translations --no-opengl-sw
+windeployqt build\ZaneTool.exe --no-translations --no-opengl-sw
 ```
 
 ### 打包
 
 ```powershell
 # ZIP (portable)
-cmake --build build --target ffmpeg-wrapper
+cmake --build build --target ZaneTool
 # 手动将 build 目录文件打包为 zip
 
 # NSIS installer
