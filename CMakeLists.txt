@@ -16,6 +16,7 @@ set(SOURCES
     src/videoprocessor.cpp
     src/audioprocessor.cpp
     src/colorpicker.cpp
+    src/windowpicker.cpp
     src/utils.cpp
     src/resources.qrc
 )
@@ -31,6 +32,7 @@ set(HEADERS
     src/videoprocessor.h
     src/audioprocessor.h
     src/colorpicker.h
+    src/windowpicker.h
     src/utils.h
 )
 

@@ -15,6 +15,8 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 
+#include <windows.h>
+
 #include <QDragEnterEvent>
 #include <QDropEvent>
 
@@ -24,6 +26,7 @@
 
 class FFmpegProcess;
 class ColorPicker;
+class WindowPicker;
 
 class MainWindow : public QMainWindow
 {
@@ -64,6 +67,12 @@ private slots:
     void onCopyHex();
     void onCopyRgb();
     void onHistoryColorClicked(int index);
+
+    void onTransparencyRefresh();
+    void onTransparencySelectionChanged();
+    void onTransparencySliderChanged(int value);
+    void onTransparencyPickWindow();
+    void onWindowPicked(HWND hwnd);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -177,6 +186,17 @@ private:
     QColor m_pickedColor;
     QList<QColor> m_colorHistory;
     ColorPicker *m_colorPicker;
+
+    // ---- Transparency tab widgets ----
+    QListWidget *m_transparencyWindowList;
+    QPushButton *m_transparencyRefreshBtn;
+    QPushButton *m_transparencyPickBtn;
+    QSlider *m_transparencySlider;
+    QLabel *m_transparencyValueLabel;
+    QLabel *m_transparencyStatusLabel;
+    HWND m_transparencyTargetHwnd;
+    LONG_PTR m_transparencyOriginalExStyle;
+    WindowPicker *m_windowPicker;
 
     // ---- Task queues ----
     QList<ImageTask> m_imageTaskQueue;
