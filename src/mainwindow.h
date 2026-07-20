@@ -17,6 +17,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QTabWidget>
+#include <QProcess>
 
 #include <windows.h>
 
@@ -41,7 +42,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(const QString &ffmpegPath, QWidget *parent = nullptr);
+    explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, QWidget *parent = nullptr);
 
 private slots:
     void onImageAddFiles();
@@ -118,6 +119,14 @@ private slots:
     void onRandomGenerate();
     void onRandomCopy();
 
+    void onDownloadAddFile();
+    void onDownloadPaste();
+    void onDownloadClear();
+    void onDownloadOutputBrowse();
+    void onDownloadStart();
+    void onDownloadCancel();
+    void onDownloadProcessOutput();
+
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
 
@@ -156,6 +165,7 @@ private:
     void setImageUiEnabled(bool enabled);
     void setVideoUiEnabled(bool enabled);
     void setAudioUiEnabled(bool enabled);
+    void setDownloadUiEnabled(bool enabled);
     void updateImageResolutionPreview();
     void updateVideoInfoPreview();
     void updateAudioInfoPreview();
@@ -335,6 +345,23 @@ private:
     QPushButton *m_randomGenerateBtn;
     QPushButton *m_randomCopyBtn;
 
+    // ---- Download tab widgets ----
+    QTextEdit *m_downloadUrlInput;
+    QPushButton *m_downloadAddFileBtn;
+    QPushButton *m_downloadPasteBtn;
+    QPushButton *m_downloadClearBtn;
+    QSpinBox *m_downloadMaxConcurrent;
+    QSpinBox *m_downloadMaxConnections;
+    QSpinBox *m_downloadSpeedLimit;
+    QCheckBox *m_downloadAllowOverwrite;
+    QLineEdit *m_downloadOutputDir;
+    QPushButton *m_downloadOutputBrowse;
+    QTableWidget *m_downloadProgressTable;
+    QProgressBar *m_downloadProgressBar;
+    QLabel *m_downloadStatusLabel;
+    QPushButton *m_downloadStartBtn;
+    QPushButton *m_downloadCancelBtn;
+
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;
     UINT m_hotkeyModifiers = 0;
@@ -372,6 +399,20 @@ private:
     FFmpegProcess *m_ffmpegImage;
     FFmpegProcess *m_ffmpegVideo;
     FFmpegProcess *m_ffmpegAudio;
+
+    QProcess *m_downloadProcess;
+    struct DownloadEntry { QString url; QString filename; int row; bool completed; bool failed; };
+    QList<DownloadEntry> m_downloadEntries;
+    QList<QProgressBar *> m_downloadBars;
+    QMap<QString, int> m_gidToIndex;
+    QString m_downloadPendingUrl;
+    int m_downloadCompleted;
+    int m_downloadFailed;
+    bool m_downloadCancelling;
+    QString m_downloadStdoutBuffer;
+    QString m_aria2Path;
+    QString m_downloadTempFile;
+    QString m_downloadOutputDirPath;
 };
 
 #endif // MAINWINDOW_H

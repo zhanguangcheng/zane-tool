@@ -61,7 +61,7 @@ Utils             → 静态：文件大小格式化、格式检测、日志
   JWT 解析    (10)  — createJwtPage() [占位]
   随机字符串   (12)  — createRandomStringPage() [占位]
 网络工具
-  批量下载    (11)  — createDownloadPage() [占位]
+  批量下载    (11)  — createDownloadPage()
 ```
 
 侧边栏使用 `QListWidget#sidebar`，项目通过 `Qt::UserRole` 存储页面索引。选中切换 `QStackedWidget` 页面。
@@ -101,3 +101,27 @@ QTimer::singleShot(1500, [btn, original]() {
 - `QDateTimeEdit` 带日历弹窗 (calendarPopup)，`dateTimeChanged` 信号实时更新秒/毫秒输出
 - 时间戳→日期转换：`QDateTime::fromSecsSinceEpoch()` / `fromMSecsSinceEpoch()`
 - 日期→时间戳转换：`QDateTime::toSecsSinceEpoch()` / `toMSecsSinceEpoch()`
+
+## 批量下载细节
+
+- `aria2c.exe` 与 exe 同级目录，`main.cpp` 启动时与 ffmpeg 一起检查
+- `MainWindow` 构造函数新增 `aria2Path` 参数
+- 用户通过 `QTextEdit` 输入 URL，每行一个，可在 URL 后加空格 + 自定义文件名
+  - 格式：`http://example.com/file.zip` 或 `http://example.com/data 自定义名.zip`
+  - 自定义文件名通过 aria2c `-i` 格式的 `out=` 选项实现
+- 启动下载时：
+  1. 解析 URL 列表 → `m_downloadEntries`
+  2. 写入临时文件 `%TEMP%/zane_download_urls.txt`（aria2c `-i` 格式）
+  3. 预填充 `QTableWidget`（文件名/进度条/速度/ETA/状态）
+  4. 通过 `QProcess` 启动 aria2c，参数含 `--max-concurrent-downloads`, `--max-connection-per-server`, `--max-overall-download-limit`, `--allow-overwrite`, `--console-log-level=notice`, `--summary-interval=1`
+- 进度解析：通过 `QProcess::readyReadStandardOutput` 信号实时读取 stdout
+  - 正则 `\[#(\d+)\s+\S+/(\S+)\((\d+)%\).*SPD:(\S+)(?:\s*ETA:(\S*))?\]` 匹配进度行
+  - GID 数字与 `m_downloadEntries` 索引一一对应（aria2c 顺序分配 GID）
+  - 每行进度更新对应行的 `QProgressBar`（cellWidget）、速度、ETA、状态
+  - 百分比=100% 时标记为"已完成"
+- "Downloading:" 行用于将等待中的条目切换为"下载中"
+- 取消流程：设置 `m_downloadCancelling` → `QProcess::kill()` → `waitForFinished(3000)` → 清理临时文件
+- 完成后：exitCode=0 则标记剩余条目为"已完成"（兼容 aria2c 可能未输出 100%），≠0 则标"失败"
+- 进度条是每行嵌入的 `QProgressBar`（`QTableWidget::setCellWidget`），总进度条是各行的平均值
+- 输出目录默认为 `./downloads/`，自动创建
+- `setDownloadUiEnabled(false/true)` 控制输入控件和按钮的启用/禁用切换

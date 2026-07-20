@@ -91,15 +91,26 @@ int main(int argc, char *argv[])
             font-size: 13px;
         }
         QListWidget::item:selected {
-            background-color: #0d6efd;
-            color: #ffffff;
+            background-color: #e7f1ff;
+            color: #0d6efd;
+        }
+        QTableWidget {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            background-color: #ffffff;
+            color: #212529;
+            font-size: 13px;
+        }
+        QTableWidget::item:selected {
+            background-color: #e7f1ff;
+            color: #0d6efd;
         }
         QProgressBar {
             border: 1px solid #ced4da;
             border-radius: 4px;
-            background-color: #e9ecef;
+            background-color: #adb5bd;
             text-align: center;
-            color: #212529;
+            color: #ffffff;
             font-size: 12px;
         }
         QProgressBar::chunk {
@@ -150,7 +161,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    MainWindow window(ffmpegPath);
+    QString aria2Path = QCoreApplication::applicationDirPath() + QStringLiteral("/aria2c.exe");
+    if (!QFileInfo::exists(aria2Path)) {
+        QMessageBox::critical(nullptr, QStringLiteral("错误"),
+                              QStringLiteral("未找到 aria2c.exe\n\n请确保 aria2c.exe 位于程序同级目录。\n\n路径: %1").arg(aria2Path));
+        return 1;
+    }
+
+    MainWindow window(ffmpegPath, aria2Path);
     window.show();
 
     return app.exec();
