@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QComboBox>
 #include <QLineEdit>
+#include <QTextEdit>
 #include <QProgressBar>
 #include <QCheckBox>
 #include <QSpinBox>
@@ -87,6 +88,10 @@ private slots:
     void onTimerStateChanged(StopwatchTimer::State state);
     void onTimerLapRecorded(const StopwatchTimer::LapEntry &entry);
 
+    void onBase64SelectFile();
+    void onBase64Clear();
+    void onBase64Copy();
+
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
 
@@ -95,6 +100,7 @@ protected:
     void dropEvent(QDropEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
     void setupUi();
@@ -134,6 +140,8 @@ private:
     void unregisterGlobalHotkey();
     QString hotkeyDisplayText() const;
     void onChangeScreenshotHotkey();
+    QString mimeTypeForFile(const QString &filePath) const;
+    void processBase64File(const QString &filePath);
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -235,6 +243,15 @@ private:
     ScreenshotPicker *m_screenshotPicker;
     QList<PinWindow *> m_pinnedWindows;
     QLabel *m_screenshotHotkeyLabel;
+
+    // ---- Base64 tab widgets ----
+    QLineEdit *m_base64FilePath;
+    QPushButton *m_base64SelectBtn;
+    QPushButton *m_base64ClearBtn;
+    QLabel *m_base64DropZone;
+    QTextEdit *m_base64Output;
+    QLabel *m_base64InfoLabel;
+    QPushButton *m_base64CopyBtn;
 
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;
