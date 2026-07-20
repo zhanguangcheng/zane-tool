@@ -16,21 +16,19 @@ ColorPicker::ColorPicker(QWidget *parent)
     setMouseTracking(true);
 }
 
-QRect ColorPicker::buildTotalDesktopRect() const
-{
-    QRect total;
-    const auto screens = QGuiApplication::screens();
-    for (QScreen *s : screens) {
-        total = total.united(s->geometry());
-    }
-    return total;
-}
-
 void ColorPicker::begin()
 {
-    QRect totalRect = buildTotalDesktopRect();
-    setGeometry(totalRect);
-    m_screenCapture = QGuiApplication::primaryScreen()->grabWindow(0);
+    QPoint cursorPos = QCursor::pos();
+    QScreen *screen = QGuiApplication::screenAt(cursorPos);
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+
+    setGeometry(screen->geometry());
+
+    m_screenCapture = screen->grabWindow(0);
+    m_dpr = m_screenCapture.devicePixelRatio();
+    m_screenImage = m_screenCapture.toImage();
+
     show();
 }
 
@@ -57,11 +55,10 @@ void ColorPicker::hideEvent(QHideEvent *event)
 
 void ColorPicker::updateColorAtCursor()
 {
-    if (!m_screenCapture.isNull()) {
-        qreal dpr = m_screenCapture.devicePixelRatio();
-        int px = qBound(0, qRound(m_cursorPos.x() * dpr), m_screenCapture.width() - 1);
-        int py = qBound(0, qRound(m_cursorPos.y() * dpr), m_screenCapture.height() - 1);
-        m_currentColor = m_screenCapture.toImage().pixelColor(px, py);
+    if (!m_screenImage.isNull()) {
+        int px = qBound(0, qRound(m_cursorPos.x() * m_dpr), m_screenImage.width() - 1);
+        int py = qBound(0, qRound(m_cursorPos.y() * m_dpr), m_screenImage.height() - 1);
+        m_currentColor = m_screenImage.pixelColor(px, py);
     }
 }
 
@@ -75,6 +72,7 @@ void ColorPicker::paintEvent(QPaintEvent *)
 
     int zoomW = m_zoomPixels * m_zoomFactor;
     int zoomH = m_zoomPixels * m_zoomFactor;
+    int halfPixels = m_zoomPixels / 2;
 
     int zoomX = m_cursorPos.x() + 30;
     int zoomY = m_cursorPos.y() + 30;
@@ -83,12 +81,10 @@ void ColorPicker::paintEvent(QPaintEvent *)
     if (zoomY + zoomH + 10 > height())
         zoomY = m_cursorPos.y() - zoomH - 30;
 
-    qreal dpr = m_screenCapture.devicePixelRatio();
-    int halfPixels = m_zoomPixels / 2;
-    int srcX = qRound((m_cursorPos.x() - halfPixels) * dpr);
-    int srcY = qRound((m_cursorPos.y() - halfPixels) * dpr);
-    int srcW = qRound(m_zoomPixels * dpr);
-    int srcH = qRound(m_zoomPixels * dpr);
+    int srcX = qRound((m_cursorPos.x() - halfPixels) * m_dpr);
+    int srcY = qRound((m_cursorPos.y() - halfPixels) * m_dpr);
+    int srcW = qRound(m_zoomPixels * m_dpr);
+    int srcH = qRound(m_zoomPixels * m_dpr);
 
     int phyW = m_screenCapture.width();
     int phyH = m_screenCapture.height();
@@ -186,8 +182,7 @@ void ColorPicker::paintEvent(QPaintEvent *)
 
 void ColorPicker::mouseMoveEvent(QMouseEvent *event)
 {
-    QRect totalRect = buildTotalDesktopRect();
-    m_cursorPos = QCursor::pos() - totalRect.topLeft();
+    m_cursorPos = QCursor::pos() - geometry().topLeft();
     updateColorAtCursor();
     update();
     QWidget::mouseMoveEvent(event);

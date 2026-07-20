@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QColor>
 #include <QPixmap>
+#include <QImage>
 #include <QPoint>
 
 class ColorPicker : public QWidget
@@ -29,9 +30,10 @@ protected:
 
 private:
     void updateColorAtCursor();
-    QRect buildTotalDesktopRect() const;
 
     QPixmap m_screenCapture;
+    QImage m_screenImage;
+    qreal m_dpr = 1.0;
     QColor m_currentColor;
     QPoint m_cursorPos;
     int m_zoomFactor = 12;
