@@ -115,6 +115,9 @@ private slots:
     void onJwtCopyCurrent();
     void onJwtCopyAll();
 
+    void onRandomGenerate();
+    void onRandomCopy();
+
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
 
@@ -319,6 +322,18 @@ private:
     QLabel *m_jwtInfoLabel;
     QPushButton *m_jwtCopyCurrentBtn;
     QPushButton *m_jwtCopyAllBtn;
+
+    // ---- RandomString tab widgets ----
+    QCheckBox *m_randomUpperCheck;
+    QCheckBox *m_randomLowerCheck;
+    QCheckBox *m_randomDigitCheck;
+    QCheckBox *m_randomSymbolCheck;
+    QLineEdit *m_randomExcludeEdit;
+    QSpinBox *m_randomLengthSpin;
+    QSpinBox *m_randomCountSpin;
+    QTextEdit *m_randomOutput;
+    QPushButton *m_randomGenerateBtn;
+    QPushButton *m_randomCopyBtn;
 
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;

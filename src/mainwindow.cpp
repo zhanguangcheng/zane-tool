@@ -7,6 +7,7 @@
 #include <QButtonGroup>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
+#include <QRandomGenerator>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTabWidget>
@@ -3636,16 +3637,161 @@ void MainWindow::onCronUpdateTimes()
 QWidget *MainWindow::createRandomStringPage()
 {
     QWidget *page = new QWidget(this);
-    QVBoxLayout *layout = new QVBoxLayout(page);
-    layout->setAlignment(Qt::AlignCenter);
-    QLabel *title = new QLabel(QStringLiteral("随机字符串生成"), page);
-    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
-    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
-    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
-    layout->addWidget(title);
-    layout->addSpacing(8);
-    layout->addWidget(desc);
+    QVBoxLayout *mainLayout = new QVBoxLayout(page);
+    mainLayout->setSpacing(16);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
+
+    QGroupBox *charGroup = new QGroupBox(QStringLiteral("字符集合"), page);
+    QVBoxLayout *charLayout = new QVBoxLayout(charGroup);
+    charLayout->setSpacing(10);
+
+    QGridLayout *checkGrid = new QGridLayout();
+    checkGrid->setSpacing(8);
+    checkGrid->setColumnStretch(1, 1);
+    checkGrid->setColumnStretch(3, 1);
+
+    m_randomUpperCheck = new QCheckBox(QStringLiteral("A-Z 大写字母"), charGroup);
+    m_randomUpperCheck->setChecked(true);
+    m_randomLowerCheck = new QCheckBox(QStringLiteral("a-z 小写字母"), charGroup);
+    m_randomLowerCheck->setChecked(true);
+    m_randomDigitCheck = new QCheckBox(QStringLiteral("0-9 数字"), charGroup);
+    m_randomDigitCheck->setChecked(true);
+    m_randomSymbolCheck = new QCheckBox(QStringLiteral("!@#$ 特殊符号"), charGroup);
+
+    checkGrid->addWidget(m_randomUpperCheck, 0, 0);
+    checkGrid->addWidget(m_randomLowerCheck, 0, 2);
+    checkGrid->addWidget(m_randomDigitCheck, 1, 0);
+    checkGrid->addWidget(m_randomSymbolCheck, 1, 2);
+
+    QHBoxLayout *excludeRow = new QHBoxLayout();
+    excludeRow->setSpacing(8);
+    QLabel *excludeLabel = new QLabel(QStringLiteral("排除字符:"), charGroup);
+    m_randomExcludeEdit = new QLineEdit(charGroup);
+    m_randomExcludeEdit->setPlaceholderText(QStringLiteral("例如: 0O1lI  (这些字符不会出现在结果中)"));
+    m_randomExcludeEdit->setStyleSheet(
+        QStringLiteral("font-family: 'Consolas', 'Courier New', monospace;"));
+    excludeRow->addWidget(excludeLabel);
+    excludeRow->addWidget(m_randomExcludeEdit, 1);
+
+    charLayout->addLayout(checkGrid);
+    charLayout->addLayout(excludeRow);
+
+    QGroupBox *configGroup = new QGroupBox(QStringLiteral("生成设置"), page);
+    QHBoxLayout *configLayout = new QHBoxLayout(configGroup);
+    configLayout->setSpacing(20);
+
+    QHBoxLayout *lengthRow = new QHBoxLayout();
+    lengthRow->setSpacing(6);
+    QLabel *lengthLabel = new QLabel(QStringLiteral("字符串长度:"), configGroup);
+    m_randomLengthSpin = new QSpinBox(configGroup);
+    m_randomLengthSpin->setRange(1, 256);
+    m_randomLengthSpin->setValue(16);
+    m_randomLengthSpin->setFixedWidth(80);
+    lengthRow->addWidget(lengthLabel);
+    lengthRow->addWidget(m_randomLengthSpin);
+
+    QHBoxLayout *countRow = new QHBoxLayout();
+    countRow->setSpacing(6);
+    QLabel *countLabel = new QLabel(QStringLiteral("生成数量:"), configGroup);
+    m_randomCountSpin = new QSpinBox(configGroup);
+    m_randomCountSpin->setRange(1, 1000);
+    m_randomCountSpin->setValue(10);
+    m_randomCountSpin->setFixedWidth(80);
+    countRow->addWidget(countLabel);
+    countRow->addWidget(m_randomCountSpin);
+
+    m_randomGenerateBtn = new QPushButton(QStringLiteral("生成随机字符串"), configGroup);
+    m_randomGenerateBtn->setCursor(Qt::PointingHandCursor);
+    m_randomGenerateBtn->setFixedHeight(32);
+    connect(m_randomGenerateBtn, &QPushButton::clicked, this, &MainWindow::onRandomGenerate);
+
+    m_randomCopyBtn = new QPushButton(QStringLiteral("复制全部"), configGroup);
+    m_randomCopyBtn->setCursor(Qt::PointingHandCursor);
+    m_randomCopyBtn->setFixedHeight(32);
+    m_randomCopyBtn->setFixedWidth(100);
+    m_randomCopyBtn->setEnabled(false);
+    connect(m_randomCopyBtn, &QPushButton::clicked, this, &MainWindow::onRandomCopy);
+
+    configLayout->addLayout(lengthRow);
+    configLayout->addLayout(countRow);
+    configLayout->addStretch();
+    configLayout->addWidget(m_randomGenerateBtn);
+    configLayout->addWidget(m_randomCopyBtn);
+
+    QGroupBox *resultGroup = new QGroupBox(QStringLiteral("结果"), page);
+    QVBoxLayout *resultLayout = new QVBoxLayout(resultGroup);
+    resultLayout->setSpacing(0);
+
+    m_randomOutput = new QTextEdit(resultGroup);
+    m_randomOutput->setReadOnly(true);
+    m_randomOutput->setStyleSheet(
+        QStringLiteral("font-family: 'Consolas', 'Courier New', monospace; font-size: 14px;"));
+    m_randomOutput->setMinimumHeight(200);
+    m_randomOutput->setPlaceholderText(QStringLiteral("点击「生成随机字符串」按钮生成结果"));
+
+    resultLayout->addWidget(m_randomOutput);
+
+    mainLayout->addWidget(charGroup);
+    mainLayout->addWidget(configGroup);
+    mainLayout->addWidget(resultGroup, 1);
+
     return page;
+}
+
+void MainWindow::onRandomGenerate()
+{
+    QString chars;
+    if (m_randomUpperCheck->isChecked())
+        chars += QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    if (m_randomLowerCheck->isChecked())
+        chars += QStringLiteral("abcdefghijklmnopqrstuvwxyz");
+    if (m_randomDigitCheck->isChecked())
+        chars += QStringLiteral("0123456789");
+    if (m_randomSymbolCheck->isChecked())
+        chars += QStringLiteral("!@#$%^&*()-_=+[]{};:'\",.<>?/\\|`~");
+
+    QString excludes = m_randomExcludeEdit->text();
+    for (const QChar &ch : excludes)
+        chars.remove(ch);
+
+    if (chars.isEmpty()) {
+        m_randomOutput->setPlainText(QStringLiteral("请至少选择一种字符类型"));
+        m_randomCopyBtn->setEnabled(false);
+        return;
+    }
+
+    int length = m_randomLengthSpin->value();
+    int count = m_randomCountSpin->value();
+    QRandomGenerator *rng = QRandomGenerator::global();
+
+    QStringList results;
+    results.reserve(count);
+    int charCount = chars.size();
+    for (int i = 0; i < count; ++i) {
+        QString str;
+        str.reserve(length);
+        for (int j = 0; j < length; ++j)
+            str.append(chars.at(rng->bounded(charCount)));
+        results.append(str);
+    }
+
+    m_randomOutput->setPlainText(results.join(QStringLiteral("\n")));
+    m_randomCopyBtn->setEnabled(true);
+}
+
+void MainWindow::onRandomCopy()
+{
+    QString text = m_randomOutput->toPlainText();
+    if (text.isEmpty())
+        return;
+    QApplication::clipboard()->setText(text);
+    QString original = m_randomCopyBtn->text();
+    m_randomCopyBtn->setText(QStringLiteral("已复制"));
+    m_randomCopyBtn->setEnabled(false);
+    QTimer::singleShot(1500, this, [this, original]() {
+        m_randomCopyBtn->setText(original);
+        m_randomCopyBtn->setEnabled(true);
+    });
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
