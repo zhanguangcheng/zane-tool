@@ -398,7 +398,7 @@ void MainWindow::setupSidebar()
     addCategory(QStringLiteral("\U0001F527 开发工具"));
     addTool(QStringLiteral("图片转Base64"), 7);
     addTool(QStringLiteral("时间戳转换"), 8);
-    addTool(QStringLiteral("定时任务"), 9);
+    addTool(QStringLiteral("Cron 解析"), 9);
     addTool(QStringLiteral("JWT 解析"), 10);
     addTool(QStringLiteral("随机字符串"), 12);
 
