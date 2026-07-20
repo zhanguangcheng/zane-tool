@@ -32,6 +32,8 @@ class ColorPicker;
 class WindowPicker;
 class ScreenshotPicker;
 class PinWindow;
+class QRadioButton;
+class QDateTimeEdit;
 
 class MainWindow : public QMainWindow
 {
@@ -91,6 +93,15 @@ private slots:
     void onBase64SelectFile();
     void onBase64Clear();
     void onBase64Copy();
+
+    void onTimestampUpdate();
+    void onTimestampNowSecCopy();
+    void onTimestampNowMsCopy();
+    void onTimestampInputChanged();
+    void onTimestampResultCopy();
+    void onDatetimeInputChanged();
+    void onDatetimeSecCopy();
+    void onDatetimeMsCopy();
 
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
@@ -252,6 +263,23 @@ private:
     QTextEdit *m_base64Output;
     QLabel *m_base64InfoLabel;
     QPushButton *m_base64CopyBtn;
+
+    QTimer *m_timestampTimer;
+    QLabel *m_timestampNowLabel;
+    QLineEdit *m_timestampNowSecEdit;
+    QPushButton *m_timestampNowSecCopyBtn;
+    QLineEdit *m_timestampNowMsEdit;
+    QPushButton *m_timestampNowMsCopyBtn;
+    QLineEdit *m_timestampInputEdit;
+    QRadioButton *m_timestampSecRadio;
+    QRadioButton *m_timestampMsRadio;
+    QLabel *m_timestampResultLabel;
+    QPushButton *m_timestampResultCopyBtn;
+    QDateTimeEdit *m_datetimeInputEdit;
+    QLineEdit *m_datetimeSecResultEdit;
+    QPushButton *m_datetimeSecCopyBtn;
+    QLineEdit *m_datetimeMsResultEdit;
+    QPushButton *m_datetimeMsCopyBtn;
 
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;
