@@ -16,6 +16,7 @@
 #include <QSpinBox>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QTabWidget>
 
 #include <windows.h>
 
@@ -108,6 +109,11 @@ private slots:
     void onCronCountChanged(int index);
     void onCronCopyAll();
     void onCronUpdateTimes();
+
+    void onJwtParse();
+    void onJwtClear();
+    void onJwtCopyCurrent();
+    void onJwtCopyAll();
 
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
@@ -301,6 +307,18 @@ private:
     QLabel *m_cronErrorLabel;
     QLabel *m_cronDescLabel;
     QTimer *m_cronTimer;
+
+    // ---- JWT tab widgets ----
+    QTextEdit *m_jwtInputEdit;
+    QPushButton *m_jwtParseBtn;
+    QPushButton *m_jwtClearBtn;
+    QTabWidget *m_jwtResultTabs;
+    QTextEdit *m_jwtHeaderEdit;
+    QTextEdit *m_jwtPayloadEdit;
+    QTextEdit *m_jwtSignatureEdit;
+    QLabel *m_jwtInfoLabel;
+    QPushButton *m_jwtCopyCurrentBtn;
+    QPushButton *m_jwtCopyAllBtn;
 
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;
