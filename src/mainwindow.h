@@ -29,6 +29,8 @@
 class FFmpegProcess;
 class ColorPicker;
 class WindowPicker;
+class ScreenshotPicker;
+class PinWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -85,9 +87,14 @@ private slots:
     void onTimerStateChanged(StopwatchTimer::State state);
     void onTimerLapRecorded(const StopwatchTimer::LapEntry &entry);
 
+    void onStartScreenshot();
+    void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private:
     void setupUi();
@@ -121,6 +128,11 @@ private:
     void updateAudioInfoPreview();
     void updateColorDisplay();
     void updateColorHistory();
+
+    void registerGlobalHotkey();
+    void unregisterGlobalHotkey();
+    QString hotkeyDisplayText() const;
+    void onChangeScreenshotHotkey();
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -218,6 +230,14 @@ private:
     QPushButton *m_timerLapBtn;
     QTableWidget *m_timerLapList;
     QPushButton *m_timerClearBtn;
+
+    ScreenshotPicker *m_screenshotPicker;
+    QList<PinWindow *> m_pinnedWindows;
+    QLabel *m_screenshotHotkeyLabel;
+
+    int m_hotkeyId = 1;
+    UINT m_hotkeyVk = VK_F4;
+    UINT m_hotkeyModifiers = 0;
 
     // ---- Task queues ----
     QList<ImageTask> m_imageTaskQueue;

@@ -17,6 +17,8 @@ set(SOURCES
     src/audioprocessor.cpp
     src/colorpicker.cpp
     src/windowpicker.cpp
+    src/screenshotpicker.cpp
+    src/pinwindow.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/resources.qrc
@@ -34,6 +36,8 @@ set(HEADERS
     src/audioprocessor.h
     src/colorpicker.h
     src/windowpicker.h
+    src/screenshotpicker.h
+    src/pinwindow.h
     src/stopwatchtimer.h
     src/utils.h
 )
