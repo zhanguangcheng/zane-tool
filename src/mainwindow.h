@@ -112,6 +112,7 @@ private:
     QWidget *createCronPage();
     QWidget *createJwtPage();
     QWidget *createDownloadPage();
+    QWidget *createRandomStringPage();
 
     void processNextImage();
     void processNextVideo();

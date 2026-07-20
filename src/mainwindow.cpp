@@ -339,6 +339,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(createCronPage());
     m_stackedWidget->addWidget(createJwtPage());
     m_stackedWidget->addWidget(createDownloadPage());
+    m_stackedWidget->addWidget(createRandomStringPage());
 
     m_stackedWidget->setCurrentIndex(0);
 
@@ -385,6 +386,7 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("时间戳转换"), 8);
     addTool(QStringLiteral("定时任务"), 9);
     addTool(QStringLiteral("JWT 解析"), 10);
+    addTool(QStringLiteral("随机字符串"), 12);
 
     addCategory(QStringLiteral("\U0001F310 网络工具"));
     addTool(QStringLiteral("批量下载"), 11);
@@ -2216,6 +2218,21 @@ void MainWindow::onTimerLapRecorded(const StopwatchTimer::LapEntry &entry)
     m_timerLapList->setItem(row, 1, lapItem);
     m_timerLapList->setItem(row, 2, totalItem);
     m_timerLapList->scrollToBottom();
+}
+
+QWidget *MainWindow::createRandomStringPage()
+{
+    QWidget *page = new QWidget(this);
+    QVBoxLayout *layout = new QVBoxLayout(page);
+    layout->setAlignment(Qt::AlignCenter);
+    QLabel *title = new QLabel(QStringLiteral("随机字符串生成"), page);
+    title->setStyleSheet(QStringLiteral("font-size: 18px; font-weight: bold; color: #6c757d;"));
+    QLabel *desc = new QLabel(QStringLiteral("功能开发中..."), page);
+    desc->setStyleSheet(QStringLiteral("font-size: 14px; color: #adb5bd;"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(desc);
+    return page;
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)
