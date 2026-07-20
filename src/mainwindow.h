@@ -103,6 +103,12 @@ private slots:
     void onDatetimeSecCopy();
     void onDatetimeMsCopy();
 
+    void onCronInputChanged();
+    void onCronPresetChanged(int index);
+    void onCronCountChanged(int index);
+    void onCronCopyAll();
+    void onCronUpdateTimes();
+
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
 
@@ -280,6 +286,21 @@ private:
     QPushButton *m_datetimeSecCopyBtn;
     QLineEdit *m_datetimeMsResultEdit;
     QPushButton *m_datetimeMsCopyBtn;
+
+    // ---- Cron tab widgets ----
+    QLineEdit *m_cronInputEdit;
+    QComboBox *m_cronPresetCombo;
+    QComboBox *m_cronCountCombo;
+    QPushButton *m_cronCopyBtn;
+    QTableWidget *m_cronNextTable;
+    QLabel *m_cronMinField;
+    QLabel *m_cronHourField;
+    QLabel *m_cronDomField;
+    QLabel *m_cronMonthField;
+    QLabel *m_cronDowField;
+    QLabel *m_cronErrorLabel;
+    QLabel *m_cronDescLabel;
+    QTimer *m_cronTimer;
 
     int m_hotkeyId = 1;
     UINT m_hotkeyVk = VK_F4;
