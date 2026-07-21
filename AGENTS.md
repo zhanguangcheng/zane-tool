@@ -15,7 +15,11 @@ cmake -S . -B build -G "MinGW Makefiles" `
 cmake --build build --target ZaneTool
 
 # 构建后部署 Qt 运行时 DLL：
-C:\qt\6.8.3\mingw_64\bin\windeployqt.exe build\ZaneTool.exe --no-translations --no-opengl-sw
+C:\qt\6.8.3\mingw_64\bin\windeployqt.exe build\ZaneTool.exe --no-translations --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --no-quick-import --skip-plugin-types generic
+
+# 删除不需要的插件（网络信息监控非 Widgets 应用必需）：
+Remove-Item -LiteralPath "build\networkinformation" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath "build\tls\qcertonlybackend.dll" -Force -ErrorAction SilentlyContinue
 ```
 
 无测试、无 linter、无 CI 配置。

@@ -1,10 +1,22 @@
 cmake_minimum_required(VERSION 3.16)
 project(ZaneTool VERSION 0.1.1 LANGUAGES C CXX)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
+string(APPEND CMAKE_CXX_FLAGS_RELEASE " -ffunction-sections -fdata-sections")
+string(APPEND CMAKE_C_FLAGS_RELEASE " -ffunction-sections -fdata-sections")
+string(APPEND CMAKE_CXX_FLAGS_MINSIZEREL " -ffunction-sections -fdata-sections")
+string(APPEND CMAKE_C_FLAGS_MINSIZEREL " -ffunction-sections -fdata-sections")
+
+string(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE " -Wl,--gc-sections -s")
+string(APPEND CMAKE_EXE_LINKER_FLAGS_MINSIZEREL " -Wl,--gc-sections -s")
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
