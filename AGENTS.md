@@ -60,6 +60,7 @@ Utils             → 静态：文件大小格式化、格式检测、日志
   定时任务     (9)  — createCronPage() [占位]
   JWT 解析    (10)  — createJwtPage() [占位]
   随机字符串   (12)  — createRandomStringPage() [占位]
+  二维码工具  (13)  — createQrCodePage()
 网络工具
   批量下载    (11)  — createDownloadPage()
 ```
@@ -77,6 +78,7 @@ Utils             → 静态：文件大小格式化、格式检测、日志
 - 窗口图标：运行时通过 `resources.qrc` 使用 SVG；Windows 资源管理器通过 `app.rc` 使用 ICO。
 - `installer/ZaneTool/` 是 NSIS 打包临时目录（已 gitignore）。NSIS 脚本在 `installer/installer.nsi`，输出到 `dist/`。
 - `build/` 和 `logs/` 目录已 gitignore。
+- 二维码：生成用 nayuki QR-Code-generator（`src/third_party/qrcodegen.{hpp,cpp}`，MIT），识别用 Quirc（`src/third_party/quirc.{h,c}` + `decode.c`/`identify.c`/`version_db.c`，ISC），均 vendor 进源码树，无外部依赖。CMake 需启用 `LANGUAGES C CXX`（Quirc 是纯 C）。屏幕识别复用 `m_screenshotPicker`，通过 `m_screenshotForQr` 标志在 `onScreenshotCaptured` 中分流到 `processQrDecodeImage()`。
 
 ## 复制到剪贴板模式
 

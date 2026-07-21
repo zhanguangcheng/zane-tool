@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 0.1.0 LANGUAGES CXX)
+project(ZaneTool VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,11 @@ set(SOURCES
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/resources.qrc
+    src/third_party/qrcodegen.cpp
+    src/third_party/quirc.c
+    src/third_party/decode.c
+    src/third_party/identify.c
+    src/third_party/version_db.c
 )
 
 set(RESOURCES

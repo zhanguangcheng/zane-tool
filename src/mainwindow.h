@@ -130,6 +130,14 @@ private slots:
     void onStartScreenshot();
     void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
 
+    void onQrGenerate();
+    void onQrSaveImage();
+    void onQrCopyImage();
+    void onQrSelectImage();
+    void onQrScreenCapture();
+    void onQrCopyResult();
+    void onQrOpenLink();
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -154,6 +162,7 @@ private:
     QWidget *createJwtPage();
     QWidget *createDownloadPage();
     QWidget *createRandomStringPage();
+    QWidget *createQrCodePage();
 
     void processNextImage();
     void processNextVideo();
@@ -178,6 +187,7 @@ private:
     void onChangeScreenshotHotkey();
     QString mimeTypeForFile(const QString &filePath) const;
     void processBase64File(const QString &filePath);
+    void processQrDecodeImage(const QImage &image, const QString &sourceDesc);
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -413,6 +423,27 @@ private:
     QString m_aria2Path;
     QString m_downloadTempFile;
     QString m_downloadOutputDirPath;
+
+    // ---- QR code tab widgets ----
+    QTextEdit *m_qrGenInput;
+    QComboBox *m_qrGenEccCombo;
+    QSpinBox *m_qrGenScaleSpin;
+    QLabel *m_qrGenPreview;
+    QLabel *m_qrGenStatusLabel;
+    QPushButton *m_qrGenSaveBtn;
+    QPushButton *m_qrGenCopyBtn;
+    QPixmap m_qrGenPixmap;
+
+    QLineEdit *m_qrDecFilePath;
+    QPushButton *m_qrDecSelectBtn;
+    QPushButton *m_qrDecScreenBtn;
+    QLabel *m_qrDecDropZone;
+    QLabel *m_qrDecPreview;
+    QTextEdit *m_qrDecOutput;
+    QLabel *m_qrDecInfoLabel;
+    QPushButton *m_qrDecCopyBtn;
+    QPushButton *m_qrDecOpenBtn;
+    bool m_screenshotForQr = false;
 };
 
 #endif // MAINWINDOW_H
