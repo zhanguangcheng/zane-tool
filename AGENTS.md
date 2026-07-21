@@ -2,7 +2,7 @@
 
 ## 项目
 
-Zane Tool — 基于 Qt6 Widgets 的桌面应用（C++17，仅 Win32，MinGW GCC 13.1），通过子进程调用 `ffmpeg.exe` 实现图片/视频/音频批量处理，同时包含屏幕取色、截图贴图、窗口透明、计时器、Base64 编码、时间戳转换等工具。
+Zane Tool — 基于 Qt6 Widgets 的桌面应用（C++17，仅 Win32，MinGW GCC 13.1），通过子进程调用 `ffmpeg.exe` 实现图片/视频/音频批量处理，同时包含屏幕取色、截图贴图、窗口透明、计时器、Base64 编码、时间戳转换、Cron 解析、JWT 解析、随机字符串生成、二维码工具、批量下载等工具。
 
 ## 构建与运行
 
@@ -23,8 +23,8 @@ C:\qt\6.8.3\mingw_64\bin\windeployqt.exe build\ZaneTool.exe --no-translations --
 ## 架构
 
 ```
-main.cpp          → QApplication + 全局 QSS（内嵌原始字符串）+ ffmpeg 存在性检查
-MainWindow        → 侧边栏 + QStackedWidget（13 页）+ 批量队列编排 + 所有工具 UI/逻辑
+main.cpp          → QApplication + 全局 QSS（内嵌原始字符串）+ ffmpeg/aria2 存在性检查
+MainWindow        → 侧边栏 + QStackedWidget（14 页）+ 批量队列编排 + 所有工具 UI/逻辑
 ImageProcessor    → 静态：构建图片 ffmpeg 参数 + 输出路径
 VideoProcessor    → 静态：构建视频 ffmpeg 参数 + 输出路径
 AudioProcessor    → 静态：构建音频 ffmpeg 参数 + 输出路径
@@ -57,9 +57,9 @@ Utils             → 静态：文件大小格式化、格式检测、日志
 开发工具
   图片转Base64 (7)  — createBase64Page()
   时间戳转换   (8)  — createTimestampPage()
-  定时任务     (9)  — createCronPage() [占位]
-  JWT 解析    (10)  — createJwtPage() [占位]
-  随机字符串   (12)  — createRandomStringPage() [占位]
+  定时任务     (9)  — createCronPage()
+  JWT 解析    (10)  — createJwtPage()
+  随机字符串   (12)  — createRandomStringPage()
   二维码工具  (13)  — createQrCodePage()
 网络工具
   批量下载    (11)  — createDownloadPage()
@@ -127,3 +127,35 @@ QTimer::singleShot(1500, [btn, original]() {
 - 进度条是每行嵌入的 `QProgressBar`（`QTableWidget::setCellWidget`），总进度条是各行的平均值
 - 输出目录默认为 `./downloads/`，自动创建
 - `setDownloadUiEnabled(false/true)` 控制输入控件和按钮的启用/禁用切换
+
+## Cron 解析细节
+
+- Cron 表达式输入使用等宽字体 (`Consolas`)，placeholder 提示 `分 时 日 月 周` 格式
+- 预设下拉菜单：自定义 / 每1分钟 / 每5分钟 / 每15分钟 / 每30分钟 / 每小时 / 每天零点 / 每周一零点 / 每月1号零点 / 工作日每小时
+- 选择预设自动填充表达式并触发解析
+- 字段解析：分钟/小时/日期/月份/星期 分别高亮显示当前值；若表达式无效则标红错误信息
+- 未来执行时间表 (`QTableWidget`)：显示序号 / 执行时间 / 相对时间三列
+- 执行次数可选 5/10/20/50 次（默认 10）
+- `m_cronTimer` (30s QTimer) 自动刷新相对时间列（显示"X 分钟后"等）
+- 复制全部按钮：将所有执行时间按行复制到剪贴板
+
+## JWT 解析细节
+
+- JWT 输入区域 (`QTextEdit`) 带 Consolas 等宽字体
+- 解析时按 `.` 分隔 header / payload / signature 三部分
+- Base64url 解码（`-`→`+`，`_`→`/`，补齐 `=`），再 Base64 解码为 JSON
+- 结果以 `QTabWidget` 三标签页展示：Header | Payload | Signature
+- Payload 自动识别时间戳字段 (`iat`/`exp`/`nbf`)，转换为可读日期时间追加显示
+- 复制当前 / 复制全部 按钮（1.5s "已复制" 反馈）
+- 清除按钮清空输入和三栏结果
+
+## 随机字符串细节
+
+- 字符集选择：A-Z 大写字母 / a-z 小写字母 / 0-9 数字 / 特殊符号（`!@#$%^&*()-_=+[]{};:'\",.<>?/\\|\`~`）
+- 排除字符输入框：从字符集中排除指定字符后再生成
+- 长度选择：1–256（默认 16）
+- 数量选择：1–1000（默认 10，实际使用 `QSpinBox` `setRange(1, 1000)`）
+- 使用 `QRandomGenerator::global()` 生成随机结果
+- 结果以 `QTextEdit` (Consolas 14px) 显示，每行一个
+- 复制全部按钮（1.5s "已复制" 反馈）
+- 若未选择任何字符类型，显示提示"请至少选择一种字符类型"
