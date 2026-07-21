@@ -7,6 +7,9 @@
 namespace Utils {
 
 QString formatFileSize(qint64 bytes);
+bool isSupportedImageFile(const QString &filePath);
+bool isSupportedVideoFile(const QString &filePath);
+bool isSupportedAudioFile(const QString &filePath);
 QString detectImageFormat(const QString &filePath);
 QString detectVideoFormat(const QString &filePath);
 QString detectAudioFormat(const QString &filePath);

@@ -25,6 +25,7 @@ namespace VideoProcessor {
 
 QStringList buildArgs(const VideoTask &task);
 QString buildOutputPath(const VideoTask &task);
+int qualityToCrf(int quality);
 int crfToAviQScale(int crf);
 QString resolveFormat(const QString &inputPath, const QString &format);
 QMap<QString, VideoEncoderInfo> encoderMap();

@@ -633,11 +633,11 @@ QWidget *MainWindow::createVideoTab()
     fmtLayout->addWidget(m_videoFormatCombo);
 
     QHBoxLayout *crfLayout = new QHBoxLayout();
-    QLabel *crfLabel = new QLabel(QStringLiteral("CRF:"), tab);
+    QLabel *crfLabel = new QLabel(QStringLiteral("质量:"), tab);
     m_videoCrfSlider = new QSlider(Qt::Horizontal, tab);
-    m_videoCrfSlider->setRange(0, 51);
-    m_videoCrfSlider->setValue(23);
-    m_videoCrfLabel = new QLabel(QStringLiteral("23"), tab);
+    m_videoCrfSlider->setRange(0, 100);
+    m_videoCrfSlider->setValue(55);
+    m_videoCrfLabel = new QLabel(QStringLiteral("55"), tab);
     m_videoCrfLabel->setFixedWidth(30);
     crfLayout->addWidget(crfLabel);
     crfLayout->addWidget(m_videoCrfSlider);
@@ -890,9 +890,15 @@ void MainWindow::onImageAddFiles()
     QStringList files = QFileDialog::getOpenFileNames(
         this, QStringLiteral("选择图片文件"), QString(),
         QStringLiteral("图片文件 (*.jpg *.jpeg *.png *.webp *.bmp);;所有文件 (*.*)"));
+    int skipped = 0;
     for (const QString &f : files) {
-        m_imageFileList->addItem(f);
+        if (Utils::isSupportedImageFile(f))
+            m_imageFileList->addItem(f);
+        else
+            ++skipped;
     }
+    if (skipped > 0)
+        statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的图片文件").arg(skipped), 3000);
 }
 
 void MainWindow::onImageRemoveSelected()
@@ -971,9 +977,15 @@ void MainWindow::onVideoAddFiles()
     QStringList files = QFileDialog::getOpenFileNames(
         this, QStringLiteral("选择视频文件"), QString(),
         QStringLiteral("视频文件 (*.mp4 *.webm *.avi *.mov *.mkv);;所有文件 (*.*)"));
+    int skipped = 0;
     for (const QString &f : files) {
-        m_videoFileList->addItem(f);
+        if (Utils::isSupportedVideoFile(f))
+            m_videoFileList->addItem(f);
+        else
+            ++skipped;
     }
+    if (skipped > 0)
+        statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的视频文件").arg(skipped), 3000);
 }
 
 void MainWindow::onVideoRemoveSelected()
@@ -1021,7 +1033,7 @@ void MainWindow::onVideoStart()
         task.inputPath = m_videoFileList->item(i)->text();
         task.outputDir = m_videoOutputDir->text();
         task.format = m_videoFormatCombo->currentData().toString();
-        task.crf = m_videoCrfSlider->value();
+        task.crf = VideoProcessor::qualityToCrf(m_videoCrfSlider->value());
         task.enableScale = m_videoScaleCheck->isChecked();
         task.presetRes = m_videoPresetRes->currentData().toString();
         m_videoTaskQueue.append(task);
@@ -1052,9 +1064,15 @@ void MainWindow::onAudioAddFiles()
     QStringList files = QFileDialog::getOpenFileNames(
         this, QStringLiteral("选择音频文件"), QString(),
         QStringLiteral("音频文件 (*.mp3 *.m4a *.aac *.flac *.wav *.ogg *.opus *.wma);;视频文件 (*.mp4 *.webm *.avi *.mov *.mkv);;所有文件 (*.*)"));
+    int skipped = 0;
     for (const QString &f : files) {
-        m_audioFileList->addItem(f);
+        if (Utils::isSupportedAudioFile(f))
+            m_audioFileList->addItem(f);
+        else
+            ++skipped;
     }
+    if (skipped > 0)
+        statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
 }
 
 void MainWindow::onAudioRemoveSelected()
@@ -2129,7 +2147,6 @@ void MainWindow::onTimestampUpdate()
 {
     QDateTime now = QDateTime::currentDateTime();
     m_timestampNowSecEdit->setText(QString::number(now.toSecsSinceEpoch()));
-    m_timestampNowMsEdit->setText(QString::number(now.toMSecsSinceEpoch()));
     m_timestampNowLabel->setText(now.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
 }
 
@@ -2145,21 +2162,6 @@ void MainWindow::onTimestampNowSecCopy()
     QTimer::singleShot(1500, this, [this, original]() {
         m_timestampNowSecCopyBtn->setText(original);
         m_timestampNowSecCopyBtn->setEnabled(true);
-    });
-}
-
-void MainWindow::onTimestampNowMsCopy()
-{
-    QString text = m_timestampNowMsEdit->text();
-    if (text.isEmpty())
-        return;
-    QApplication::clipboard()->setText(text);
-    QString original = m_timestampNowMsCopyBtn->text();
-    m_timestampNowMsCopyBtn->setText(QStringLiteral("已复制"));
-    m_timestampNowMsCopyBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_timestampNowMsCopyBtn->setText(original);
-        m_timestampNowMsCopyBtn->setEnabled(true);
     });
 }
 
@@ -2216,7 +2218,6 @@ void MainWindow::onDatetimeInputChanged()
 {
     QDateTime dt = m_datetimeInputEdit->dateTime();
     m_datetimeSecResultEdit->setText(QString::number(dt.toSecsSinceEpoch()));
-    m_datetimeMsResultEdit->setText(QString::number(dt.toMSecsSinceEpoch()));
 }
 
 void MainWindow::onDatetimeSecCopy()
@@ -2231,21 +2232,6 @@ void MainWindow::onDatetimeSecCopy()
     QTimer::singleShot(1500, this, [this, original]() {
         m_datetimeSecCopyBtn->setText(original);
         m_datetimeSecCopyBtn->setEnabled(true);
-    });
-}
-
-void MainWindow::onDatetimeMsCopy()
-{
-    QString text = m_datetimeMsResultEdit->text();
-    if (text.isEmpty())
-        return;
-    QApplication::clipboard()->setText(text);
-    QString original = m_datetimeMsCopyBtn->text();
-    m_datetimeMsCopyBtn->setText(QStringLiteral("已复制"));
-    m_datetimeMsCopyBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_datetimeMsCopyBtn->setText(original);
-        m_datetimeMsCopyBtn->setEnabled(true);
     });
 }
 
@@ -2392,23 +2378,6 @@ QWidget *MainWindow::createTimestampPage()
     secRow->addWidget(m_timestampNowSecEdit, 1);
     secRow->addWidget(m_timestampNowSecCopyBtn);
 
-    QHBoxLayout *msRow = new QHBoxLayout();
-    msRow->setSpacing(8);
-    QLabel *msLabel = new QLabel(QStringLiteral("毫秒级:"), nowGroup);
-    msLabel->setFixedWidth(60);
-    m_timestampNowMsEdit = new QLineEdit(nowGroup);
-    m_timestampNowMsEdit->setReadOnly(true);
-    m_timestampNowMsEdit->setStyleSheet(
-        QStringLiteral("font-family: 'Consolas', 'Courier New', monospace;"));
-    m_timestampNowMsCopyBtn = new QPushButton(QStringLiteral("复制"), nowGroup);
-    m_timestampNowMsCopyBtn->setFixedHeight(30);
-    m_timestampNowMsCopyBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_timestampNowMsCopyBtn, &QPushButton::clicked,
-            this, &MainWindow::onTimestampNowMsCopy);
-    msRow->addWidget(msLabel);
-    msRow->addWidget(m_timestampNowMsEdit, 1);
-    msRow->addWidget(m_timestampNowMsCopyBtn);
-
     QHBoxLayout *localRow = new QHBoxLayout();
     localRow->setSpacing(8);
     QLabel *localLabel = new QLabel(QStringLiteral("本地时间:"), nowGroup);
@@ -2421,7 +2390,6 @@ QWidget *MainWindow::createTimestampPage()
     localRow->addWidget(m_timestampNowLabel, 1);
 
     nowLayout->addLayout(secRow);
-    nowLayout->addLayout(msRow);
     nowLayout->addLayout(localRow);
 
     QGroupBox *tsToDtGroup = new QGroupBox(QStringLiteral("时间戳 → 日期时间"), page);
@@ -2481,29 +2449,6 @@ QWidget *MainWindow::createTimestampPage()
     m_datetimeInputEdit = new QDateTimeEdit(QDateTime::currentDateTime(), dtToTsGroup);
     m_datetimeInputEdit->setDisplayFormat(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     m_datetimeInputEdit->setCalendarPopup(true);
-    m_datetimeInputEdit->setStyleSheet(
-        QStringLiteral("QDateTimeEdit {"
-                       "  border: 1px solid #ced4da;"
-                       "  border-radius: 4px;"
-                       "  padding: 6px 10px;"
-                       "  background-color: #ffffff;"
-                       "  color: #212529;"
-                       "  font-size: 13px;"
-                       "}"
-                       "QDateTimeEdit:focus { border-color: #86b7fe; }"
-                       "QDateTimeEdit::drop-down {"
-                       "  subcontrol-origin: padding;"
-                       "  subcontrol-position: top right;"
-                       "  width: 24px;"
-                       "  border-left: 1px solid #ced4da;"
-                       "}"
-                       "QDateTimeEdit::down-arrow { width: 10px; height: 10px; }"
-                       "QDateTimeEdit QAbstractSpinBox::up-button,"
-                       "QDateTimeEdit QAbstractSpinBox::down-button {"
-                       "  border: none;"
-                       "  background: #f1f3f5;"
-                       "  width: 22px;"
-                       "}"));
     connect(m_datetimeInputEdit, &QDateTimeEdit::dateTimeChanged,
             this, &MainWindow::onDatetimeInputChanged);
 
@@ -2524,26 +2469,8 @@ QWidget *MainWindow::createTimestampPage()
     dtSecRow->addWidget(m_datetimeSecResultEdit, 1);
     dtSecRow->addWidget(m_datetimeSecCopyBtn);
 
-    QHBoxLayout *dtMsRow = new QHBoxLayout();
-    dtMsRow->setSpacing(8);
-    QLabel *dtMsLabel = new QLabel(QStringLiteral("毫秒级:"), dtToTsGroup);
-    dtMsLabel->setFixedWidth(60);
-    m_datetimeMsResultEdit = new QLineEdit(dtToTsGroup);
-    m_datetimeMsResultEdit->setReadOnly(true);
-    m_datetimeMsResultEdit->setStyleSheet(
-        QStringLiteral("font-family: 'Consolas', 'Courier New', monospace;"));
-    m_datetimeMsCopyBtn = new QPushButton(QStringLiteral("复制"), dtToTsGroup);
-    m_datetimeMsCopyBtn->setFixedHeight(30);
-    m_datetimeMsCopyBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_datetimeMsCopyBtn, &QPushButton::clicked,
-            this, &MainWindow::onDatetimeMsCopy);
-    dtMsRow->addWidget(dtMsLabel);
-    dtMsRow->addWidget(m_datetimeMsResultEdit, 1);
-    dtMsRow->addWidget(m_datetimeMsCopyBtn);
-
     dtToTsLayout->addWidget(m_datetimeInputEdit);
     dtToTsLayout->addLayout(dtSecRow);
-    dtToTsLayout->addLayout(dtMsRow);
 
     mainLayout->addWidget(nowGroup);
     mainLayout->addWidget(tsToDtGroup);
@@ -4492,10 +4419,25 @@ void MainWindow::dropEvent(QDropEvent *event)
 
     if (!list) return;
 
+    int skipped = 0;
     for (const QUrl &url : mimeData->urls()) {
-        if (url.isLocalFile())
-            list->addItem(url.toLocalFile());
+        if (!url.isLocalFile())
+            continue;
+        QString path = url.toLocalFile();
+        bool ok = false;
+        if (pageIndex == 0)
+            ok = Utils::isSupportedImageFile(path);
+        else if (pageIndex == 1)
+            ok = Utils::isSupportedVideoFile(path);
+        else if (pageIndex == 2)
+            ok = Utils::isSupportedAudioFile(path);
+        if (ok)
+            list->addItem(path);
+        else
+            ++skipped;
     }
+    if (skipped > 0)
+        statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
 }
 
 // ==================== QR Code Page ====================
@@ -4510,29 +4452,27 @@ QWidget *MainWindow::createQrCodePage()
     QTabWidget *tabs = new QTabWidget(page);
     tabs->setStyleSheet(QStringLiteral(
         "QTabWidget::pane {"
-        "  border: none;"
-        "  border-top: 1px solid #dee2e6;"
+        "  border: 1px solid #ced4da;"
+        "  border-radius: 4px;"
         "  background-color: #ffffff;"
         "}"
         "QTabBar::tab {"
-        "  color: #0d6efd;"
-        "  background-color: transparent;"
-        "  border: 1px solid transparent;"
-        "  border-top-left-radius: 6px;"
-        "  border-top-right-radius: 6px;"
-        "  padding: 8px 16px;"
-        "  margin-right: 4px;"
-        "  font-size: 14px;"
-        "}"
-        "QTabBar::tab:hover {"
-        "  color: #0a58ca;"
-        "  border-color: #e9ecef #e9ecef transparent;"
+        "  padding: 8px 20px;"
+        "  border: 1px solid #ced4da;"
+        "  border-bottom: none;"
+        "  border-top-left-radius: 4px;"
+        "  border-top-right-radius: 4px;"
+        "  background-color: #f1f3f5;"
+        "  color: #495057;"
+        "  font-size: 13px;"
         "}"
         "QTabBar::tab:selected {"
-        "  color: #495057;"
         "  background-color: #ffffff;"
-        "  border: 1px solid #dee2e6;"
-        "  border-bottom-color: #ffffff;"
+        "  color: #0d6efd;"
+        "  font-weight: bold;"
+        "}"
+        "QTabBar::tab:hover:!selected {"
+        "  background-color: #e9ecef;"
         "}"));
 
     // ---- Generate tab ----

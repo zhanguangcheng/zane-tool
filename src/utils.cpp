@@ -22,6 +22,28 @@ QString formatFileSize(qint64 bytes)
     return QString::number(v, 'f', 2) + QStringLiteral(" GB");
 }
 
+bool isSupportedImageFile(const QString &filePath)
+{
+    QFileInfo fi(filePath);
+    static const QStringList exts = {"jpg", "jpeg", "png", "webp", "bmp"};
+    return exts.contains(fi.suffix().toLower());
+}
+
+bool isSupportedVideoFile(const QString &filePath)
+{
+    QFileInfo fi(filePath);
+    static const QStringList exts = {"mp4", "webm", "avi", "mov", "mkv"};
+    return exts.contains(fi.suffix().toLower());
+}
+
+bool isSupportedAudioFile(const QString &filePath)
+{
+    QFileInfo fi(filePath);
+    static const QStringList exts = {"mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "wma",
+                                     "mp4", "webm", "avi", "mov", "mkv"};
+    return exts.contains(fi.suffix().toLower());
+}
+
 QString detectImageFormat(const QString &filePath)
 {
     QFileInfo fi(filePath);

@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
             background: #0d6efd;
             border-radius: 3px;
         }
-        QLineEdit, QSpinBox, QComboBox {
+        QLineEdit, QSpinBox, QComboBox, QDateTimeEdit {
             border: 1px solid #ced4da;
             border-radius: 4px;
             padding: 4px 8px;
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
             color: #212529;
             font-size: 13px;
         }
-        QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+        QLineEdit:focus, QSpinBox:focus, QComboBox:focus, QDateTimeEdit:focus {
             border-color: #86b7fe;
             outline: none;
         }

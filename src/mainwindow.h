@@ -98,12 +98,12 @@ private slots:
 
     void onTimestampUpdate();
     void onTimestampNowSecCopy();
-    void onTimestampNowMsCopy();
+
     void onTimestampInputChanged();
     void onTimestampResultCopy();
     void onDatetimeInputChanged();
     void onDatetimeSecCopy();
-    void onDatetimeMsCopy();
+
 
     void onCronInputChanged();
     void onCronPresetChanged(int index);
@@ -303,8 +303,6 @@ private:
     QLabel *m_timestampNowLabel;
     QLineEdit *m_timestampNowSecEdit;
     QPushButton *m_timestampNowSecCopyBtn;
-    QLineEdit *m_timestampNowMsEdit;
-    QPushButton *m_timestampNowMsCopyBtn;
     QLineEdit *m_timestampInputEdit;
     QRadioButton *m_timestampSecRadio;
     QRadioButton *m_timestampMsRadio;
@@ -313,8 +311,6 @@ private:
     QDateTimeEdit *m_datetimeInputEdit;
     QLineEdit *m_datetimeSecResultEdit;
     QPushButton *m_datetimeSecCopyBtn;
-    QLineEdit *m_datetimeMsResultEdit;
-    QPushButton *m_datetimeMsCopyBtn;
 
     // ---- Cron tab widgets ----
     QLineEdit *m_cronInputEdit;

@@ -17,6 +17,11 @@ QMap<QString, VideoEncoderInfo> encoderMap()
     return map;
 }
 
+int qualityToCrf(int quality)
+{
+    return qBound(0, static_cast<int>(qRound(51.0 - quality * 51.0 / 100.0)), 51);
+}
+
 int crfToAviQScale(int crf)
 {
     return qBound(1, static_cast<int>(qRound(1.0 + crf * 30.0 / 51.0)), 31);
