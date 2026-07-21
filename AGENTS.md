@@ -7,21 +7,27 @@ Zane Tool — 基于 Qt6 Widgets 的桌面应用（C++17，仅 Win32，MinGW GCC
 ## 构建与运行
 
 ```powershell
-C:\Qt\Tools\CMake_64\bin\cmake.exe -S . -B build -G "MinGW Makefiles" `
-  -DCMAKE_PREFIX_PATH="C:/qt/6.8.3/mingw_64" `
-  -DCMAKE_C_COMPILER="C:/qt/Tools/mingw1310_64/bin/gcc.exe" `
-  -DCMAKE_CXX_COMPILER="C:/qt/Tools/mingw1310_64/bin/c++.exe" `
-  -DCMAKE_RC_COMPILER="C:/qt/Tools/mingw1310_64/bin/windres.exe"
+.\scripts\build.ps1
+```
 
-C:\Qt\Tools\CMake_64\bin\cmake.exe --build build --target ZaneTool
+CMake 配置 + 编译，生成 `build\ZaneTool.exe`。构建后手动部署 Qt 运行时 DLL：
 
-# 构建后部署 Qt 运行时 DLL：
+```powershell
 C:\qt\6.8.3\mingw_64\bin\windeployqt.exe build\ZaneTool.exe --no-translations --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --no-quick-import --skip-plugin-types generic
 
-# 删除不需要的插件（网络信息监控非 Widgets 应用必需）：
 Remove-Item -LiteralPath "build\networkinformation" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath "build\tls\qcertonlybackend.dll" -Force -ErrorAction SilentlyContinue
 ```
+
+## 打包安装包
+
+```powershell
+.\scripts\package.ps1
+```
+
+脚本自动执行：CMake 编译 → windeployqt 部署 → 清理冗余插件 → 同步文件到 `installer\ZaneTool\` → 调用 `makensis` 生成 NSIS 安装包到 `dist\ZaneTool-<version>-setup.exe`。
+
+NSIS 脚本位于 `installer\installer.nsi`，安装目录为 `$PROGRAMFILES64\ZaneTool`，含开始菜单和桌面快捷方式。
 
 无测试、无 linter、无 CI 配置。
 
