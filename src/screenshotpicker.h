@@ -30,6 +30,7 @@ private:
     QRect normalizedSelection() const;
 
     QPixmap m_screenCapture;
+    qreal m_dpr = 1.0;
     bool m_selecting = false;
     bool m_hasSelection = false;
     QPoint m_startPoint;

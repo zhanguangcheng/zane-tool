@@ -24,9 +24,10 @@ void ScreenshotPicker::begin()
 
     QRect geo = screen->geometry();
     setGeometry(geo);
-    move(geo.topLeft());
 
-    m_screenCapture = screen->grabWindow(0, geo.x(), geo.y(), geo.width(), geo.height());
+    m_screenCapture = screen->grabWindow(0);
+    m_dpr = m_screenCapture.devicePixelRatio();
+    if (m_dpr <= 0.0) m_dpr = 1.0;
 
     m_selecting = false;
     m_hasSelection = false;
@@ -89,9 +90,9 @@ void ScreenshotPicker::paintEvent(QPaintEvent *)
                                  handleSize, handleSize));
             }
 
-            qreal dpr = devicePixelRatioF();
-            int w = qRound(sel.width() / dpr);
-            int h = qRound(sel.height() / dpr);
+            qreal dpr = m_dpr;
+            int w = qRound(sel.width() * dpr);
+            int h = qRound(sel.height() * dpr);
             QString sizeText = QStringLiteral("%1 \u00D7 %2").arg(w).arg(h);
 
             QFont font(QStringLiteral("Microsoft YaHei"), 10);
@@ -155,7 +156,9 @@ void ScreenshotPicker::mouseReleaseEvent(QMouseEvent *event)
             m_hasSelection = true;
             update();
 
-            QPixmap captured = m_screenCapture.copy(sel);
+            QRect physicalSel(sel.left() * m_dpr, sel.top() * m_dpr,
+                              sel.width() * m_dpr, sel.height() * m_dpr);
+            QPixmap captured = m_screenCapture.copy(physicalSel);
             QPoint globalPos = geometry().topLeft() + sel.topLeft();
             emit screenshotCaptured(captured, globalPos);
             hide();
@@ -181,7 +184,9 @@ void ScreenshotPicker::keyPressEvent(QKeyEvent *event)
                && m_hasSelection) {
         QRect sel = normalizedSelection();
         if (sel.width() > 4 && sel.height() > 4) {
-            QPixmap captured = m_screenCapture.copy(sel);
+            QRect physicalSel(sel.left() * m_dpr, sel.top() * m_dpr,
+                              sel.width() * m_dpr, sel.height() * m_dpr);
+            QPixmap captured = m_screenCapture.copy(physicalSel);
             QPoint globalPos = geometry().topLeft() + sel.topLeft();
             emit screenshotCaptured(captured, globalPos);
             hide();
