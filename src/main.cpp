@@ -168,7 +168,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    MainWindow window(ffmpegPath, aria2Path);
+    QString mkcertPath = QCoreApplication::applicationDirPath() + QStringLiteral("/mkcert.exe");
+    if (!QFileInfo::exists(mkcertPath)) {
+        QMessageBox::critical(nullptr, QStringLiteral("错误"),
+                              QStringLiteral("未找到 mkcert.exe\n\n请确保 mkcert.exe 位于程序同级目录。\n\n路径: %1").arg(mkcertPath));
+        return 1;
+    }
+
+    MainWindow window(ffmpegPath, aria2Path, mkcertPath);
     window.show();
 
     return app.exec();

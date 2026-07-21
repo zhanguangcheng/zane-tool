@@ -42,7 +42,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, QWidget *parent = nullptr);
+    explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
     void onImageAddFiles();
@@ -138,6 +138,14 @@ private slots:
     void onQrCopyResult();
     void onQrOpenLink();
 
+    void onCertGenerate();
+    void onCertInstallCa();
+    void onCertUninstallCa();
+    void onCertOutputBrowse();
+    void onCertOpenOutputDir();
+    void onCertOpenCaroot();
+    void onCertProcessOutput();
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -163,6 +171,7 @@ private:
     QWidget *createDownloadPage();
     QWidget *createRandomStringPage();
     QWidget *createQrCodePage();
+    QWidget *createCertPage();
 
     void processNextImage();
     void processNextVideo();
@@ -188,6 +197,7 @@ private:
     QString mimeTypeForFile(const QString &filePath) const;
     void processBase64File(const QString &filePath);
     void processQrDecodeImage(const QImage &image, const QString &sourceDesc);
+    void refreshCertCaStatus();
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -440,6 +450,24 @@ private:
     QPushButton *m_qrDecCopyBtn;
     QPushButton *m_qrDecOpenBtn;
     bool m_screenshotForQr = false;
+
+    // ---- Cert (HTTPS证书) tab widgets ----
+    QLabel *m_certCaStatusLabel;
+    QLabel *m_certCarootLabel;
+    QPushButton *m_certInstallCaBtn;
+    QPushButton *m_certUninstallCaBtn;
+    QPushButton *m_certOpenCarootBtn;
+    QTextEdit *m_certDomainsInput;
+    QLineEdit *m_certNameEdit;
+    QLineEdit *m_certOutputDir;
+    QPushButton *m_certOutputBrowseBtn;
+    QPushButton *m_certGenerateBtn;
+    QPushButton *m_certOpenOutputBtn;
+    QTextEdit *m_certLogOutput;
+    QProcess *m_certProcess;
+    QString m_mkcertPath;
+    QString m_certCarootPath;
+    bool m_certRunning;
 };
 
 #endif // MAINWINDOW_H

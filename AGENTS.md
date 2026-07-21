@@ -164,3 +164,17 @@ QTimer::singleShot(1500, [btn, original]() {
 - 结果以 `QTextEdit` (Consolas 14px) 显示，每行一个
 - 复制全部按钮（1.5s "已复制" 反馈）
 - 若未选择任何字符类型，显示提示"请至少选择一种字符类型"
+
+## HTTPS 证书细节
+
+- `mkcert.exe` 与 exe 同级目录，`main.cpp` 启动时与 ffmpeg/aria2c 一起检查，缺失则致命退出
+- 页面在开发工具分组，索引 14，`createCertPage()`，`MainWindow` 构造函数第三个参数 `mkcertPath`
+- CA 状态检测：同步运行 `mkcert -CAROOT`（`waitForFinished(5000)`），检查 `<CAROOT>/rootCA.pem` 是否存在
+- 安装/卸载根证书：`ShellExecuteExW` + `runas` 动词弹 UAC 提权运行 `mkcert -install` / `-uninstall`，`SEE_MASK_NOCLOSEPROCESS` + `WaitForSingleObject(60000)` 等待完成后刷新状态；`ERROR_CANCELLED`（用户取消 UAC）静默返回
+- 生成证书：`QProcess` + `MergedChannels`，参数 `-cert-file <dir>/<name>.pem -key-file <dir>/<name>-key.pem <域名...>`
+  - 域名输入按行/逗号/分号/空白拆分，用 `^[A-Za-z0-9*_.\-:]+$` 做轻量校验，其余交给 mkcert 报错
+  - 文件名剔除 `\ / : * ? " < > |` 非法字符，默认 `dev`
+  - 输出目录必填（无默认值），选择后自动 `mkpath`
+  - 成功判定：exitCode=0 且两个 pem 文件存在且非空
+- `m_certRunning` 标志 + `closeEvent` 中 kill 进程，与 ffmpeg/aria2 取消模式一致
+
