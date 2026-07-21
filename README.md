@@ -184,12 +184,12 @@ onStart()
 ### 编译
 
 ```powershell
-cmake -S . -B build -G "MinGW Makefiles" `
+C:\Qt\Tools\CMake_64\bin\cmake.exe -S . -B build -G "MinGW Makefiles" `
   -DCMAKE_PREFIX_PATH="C:/qt/6.8.3/mingw_64" `
   -DCMAKE_CXX_COMPILER="C:/qt/Tools/mingw1310_64/bin/c++.exe" `
   -DCMAKE_RC_COMPILER="C:/qt/Tools/mingw1310_64/bin/windres.exe"
 
-cmake --build build --target ZaneTool
+C:\Qt\Tools\CMake_64\bin\cmake.exe --build build --target ZaneTool
 ```
 
 ### 部署 Qt 运行时 DLL

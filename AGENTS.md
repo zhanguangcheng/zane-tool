@@ -7,13 +7,13 @@ Zane Tool — 基于 Qt6 Widgets 的桌面应用（C++17，仅 Win32，MinGW GCC
 ## 构建与运行
 
 ```powershell
-cmake -S . -B build -G "MinGW Makefiles" `
+C:\Qt\Tools\CMake_64\bin\cmake.exe -S . -B build -G "MinGW Makefiles" `
   -DCMAKE_PREFIX_PATH="C:/qt/6.8.3/mingw_64" `
   -DCMAKE_C_COMPILER="C:/qt/Tools/mingw1310_64/bin/gcc.exe" `
   -DCMAKE_CXX_COMPILER="C:/qt/Tools/mingw1310_64/bin/c++.exe" `
   -DCMAKE_RC_COMPILER="C:/qt/Tools/mingw1310_64/bin/windres.exe"
 
-cmake --build build --target ZaneTool
+C:\Qt\Tools\CMake_64\bin\cmake.exe --build build --target ZaneTool
 
 # 构建后部署 Qt 运行时 DLL：
 C:\qt\6.8.3\mingw_64\bin\windeployqt.exe build\ZaneTool.exe --no-translations --no-opengl-sw --no-system-d3d-compiler --no-system-dxc-compiler --no-quick-import --skip-plugin-types generic
