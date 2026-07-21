@@ -18,6 +18,8 @@
 #include <QHBoxLayout>
 #include <QTabWidget>
 #include <QProcess>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 #include <windows.h>
 
@@ -138,6 +140,10 @@ private slots:
     void onQrCopyResult();
     void onQrOpenLink();
 
+    void onIpWanQuery();
+    void onIpCopyLan();
+    void onIpCopyWan();
+
     void onCertGenerate();
     void onCertInstallCa();
     void onCertUninstallCa();
@@ -172,6 +178,7 @@ private:
     QWidget *createRandomStringPage();
     QWidget *createQrCodePage();
     QWidget *createCertPage();
+    QWidget *createIpQueryPage();
 
     void processNextImage();
     void processNextVideo();
@@ -468,6 +475,16 @@ private:
     QString m_mkcertPath;
     QString m_certCarootPath;
     bool m_certRunning;
+
+    // ---- IP Query tab widgets ----
+    QTextEdit *m_ipLanEdit;
+    QPushButton *m_ipCopyLanBtn;
+    QComboBox *m_ipWanSourceCombo;
+    QPushButton *m_ipWanQueryBtn;
+    QLineEdit *m_ipWanEdit;
+    QPushButton *m_ipCopyWanBtn;
+    QNetworkAccessManager *m_ipNetworkManager;
+    QString m_ipLanText;
 };
 
 #endif // MAINWINDOW_H
