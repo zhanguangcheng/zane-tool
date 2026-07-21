@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
             outline: none;
         }
         QListWidget#sidebar::item {
-            padding: 7px 0px;
+            padding: 6px 0px;
             color: #212529;
         }
         QListWidget#sidebar::item:selected {
