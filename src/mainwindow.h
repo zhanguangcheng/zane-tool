@@ -36,6 +36,7 @@ class Base64Tool;
 class TimestampTool;
 class CronTool;
 class JwtTool;
+class RandomStringTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -47,9 +48,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onRandomGenerate();
-    void onRandomCopy();
-
     void onDownloadAddFile();
     void onDownloadPaste();
     void onDownloadClear();
@@ -89,7 +87,6 @@ private:
     void setupUi();
     void setupSidebar();
     QWidget *createDownloadPage();
-    QWidget *createRandomStringPage();
     QWidget *createQrCodePage();
     QWidget *createCertPage();
     QWidget *createIpQueryPage();
@@ -118,20 +115,9 @@ private:
     TimestampTool *m_timestampTool;
     CronTool *m_cronTool;
     JwtTool *m_jwtTool;
+    RandomStringTool *m_randomStringTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- RandomString tab widgets ----
-    QCheckBox *m_randomUpperCheck;
-    QCheckBox *m_randomLowerCheck;
-    QCheckBox *m_randomDigitCheck;
-    QCheckBox *m_randomSymbolCheck;
-    QLineEdit *m_randomExcludeEdit;
-    QSpinBox *m_randomLengthSpin;
-    QSpinBox *m_randomCountSpin;
-    QTextEdit *m_randomOutput;
-    QPushButton *m_randomGenerateBtn;
-    QPushButton *m_randomCopyBtn;
 
     // ---- Download tab widgets ----
     QTextEdit *m_downloadUrlInput;

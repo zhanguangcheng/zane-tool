@@ -42,6 +42,7 @@ set(SOURCES
     src/timestamptool.cpp
     src/crontool.cpp
     src/jwttool.cpp
+    src/randomstringtool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -78,6 +79,7 @@ set(HEADERS
     src/timestamptool.h
     src/crontool.h
     src/jwttool.h
+    src/randomstringtool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h
