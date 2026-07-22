@@ -39,6 +39,7 @@ set(SOURCES
     src/transparencytool.cpp
     src/timertool.cpp
     src/base64tool.cpp
+    src/timestamptool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -72,6 +73,7 @@ set(HEADERS
     src/transparencytool.h
     src/timertool.h
     src/base64tool.h
+    src/timestamptool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h

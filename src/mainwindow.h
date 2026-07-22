@@ -33,6 +33,7 @@ class ScreenshotTool;
 class TransparencyTool;
 class TimerTool;
 class Base64Tool;
+class TimestampTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -44,15 +45,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onTimestampUpdate();
-    void onTimestampNowSecCopy();
-
-    void onTimestampInputChanged();
-    void onTimestampResultCopy();
-    void onDatetimeInputChanged();
-    void onDatetimeSecCopy();
-
-
     void onCronInputChanged();
     void onCronPresetChanged(int index);
     void onCronCountChanged(int index);
@@ -105,7 +97,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createTimestampPage();
     QWidget *createCronPage();
     QWidget *createJwtPage();
     QWidget *createDownloadPage();
@@ -135,21 +126,9 @@ private:
     TransparencyTool *m_transparencyTool;
     TimerTool *m_timerTool;
     Base64Tool *m_base64Tool;
+    TimestampTool *m_timestampTool;
 
     QLabel *m_aboutLabel;
-
-    QTimer *m_timestampTimer;
-    QLabel *m_timestampNowLabel;
-    QLineEdit *m_timestampNowSecEdit;
-    QPushButton *m_timestampNowSecCopyBtn;
-    QLineEdit *m_timestampInputEdit;
-    QRadioButton *m_timestampSecRadio;
-    QRadioButton *m_timestampMsRadio;
-    QLabel *m_timestampResultLabel;
-    QPushButton *m_timestampResultCopyBtn;
-    QDateTimeEdit *m_datetimeInputEdit;
-    QLineEdit *m_datetimeSecResultEdit;
-    QPushButton *m_datetimeSecCopyBtn;
 
     // ---- Cron tab widgets ----
     QLineEdit *m_cronInputEdit;
