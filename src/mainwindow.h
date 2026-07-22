@@ -29,7 +29,6 @@
 #include "calculator.h"
 #include "stopwatchtimer.h"
 
-class ColorPicker;
 class WindowPicker;
 class ScreenshotPicker;
 class PinWindow;
@@ -44,12 +43,7 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onStartPickColor();
-    void onColorPicked(const QColor &color);
     void onPickCancelled();
-    void onCopyHex();
-    void onCopyRgb();
-    void onHistoryColorClicked(int index);
 
     void onTransparencyRefresh();
     void onTransparencySelectionChanged();
@@ -134,7 +128,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createColorPickerPage();
     QWidget *createStickyNotePage();
     QWidget *createTransparencyPage();
     QWidget *createTimerPage();
@@ -152,8 +145,6 @@ private:
     void showAbout();
 
     void setDownloadUiEnabled(bool enabled);
-    void updateColorDisplay();
-    void updateColorHistory();
 
     void registerGlobalHotkey();
     void unregisterGlobalHotkey();
@@ -172,25 +163,9 @@ private:
     class ImageTool *m_imageTool;
     class VideoTool *m_videoTool;
     class AudioTool *m_audioTool;
+    class ColorPickerPage *m_colorPickerPage;
 
     QLabel *m_aboutLabel;
-
-    // ---- ColorPicker tab widgets ----
-    QPushButton *m_pickColorBtn;
-    QLabel *m_colorSwatch;
-    QLabel *m_hexLabel;
-    QLabel *m_hexValue;
-    QLabel *m_rgbLabel;
-    QLabel *m_rgbValue;
-    QLabel *m_hslLabel;
-    QLabel *m_hslValue;
-    QPushButton *m_copyHexBtn;
-    QPushButton *m_copyRgbBtn;
-    QWidget *m_historyContainer;
-    QHBoxLayout *m_historyLayout;
-    QColor m_pickedColor;
-    QList<QColor> m_colorHistory;
-    ColorPicker *m_colorPicker;
 
     // ---- Transparency tab widgets ----
     QListWidget *m_transparencyWindowList;

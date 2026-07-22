@@ -26,6 +26,7 @@ set(SOURCES
     src/image_tool.cpp
     src/video_tool.cpp
     src/audio_tool.cpp
+    src/colorpickerpage.cpp
     src/ffmpegprocess.cpp
     src/imageprocessor.cpp
     src/videoprocessor.cpp
@@ -54,6 +55,7 @@ set(HEADERS
     src/image_tool.h
     src/video_tool.h
     src/audio_tool.h
+    src/colorpickerpage.h
     src/ffmpegprocess.h
     src/imageprocessor.h
     src/videoprocessor.h
