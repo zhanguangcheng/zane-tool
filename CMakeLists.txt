@@ -23,6 +23,9 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 set(SOURCES
     src/main.cpp
     src/mainwindow.cpp
+    src/image_tool.cpp
+    src/video_tool.cpp
+    src/audio_tool.cpp
     src/ffmpegprocess.cpp
     src/imageprocessor.cpp
     src/videoprocessor.cpp
@@ -48,6 +51,9 @@ set(RESOURCES
 
 set(HEADERS
     src/mainwindow.h
+    src/image_tool.h
+    src/video_tool.h
+    src/audio_tool.h
     src/ffmpegprocess.h
     src/imageprocessor.h
     src/videoprocessor.h
