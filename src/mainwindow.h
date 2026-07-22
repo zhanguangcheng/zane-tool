@@ -30,8 +30,7 @@
 #include "stopwatchtimer.h"
 
 class WindowPicker;
-class ScreenshotPicker;
-class PinWindow;
+class ScreenshotTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -95,9 +94,6 @@ private slots:
     void onDownloadCancel();
     void onDownloadProcessOutput();
 
-    void onStartScreenshot();
-    void onScreenshotCaptured(const QPixmap &pixmap, QPoint globalPos);
-
     void onQrGenerate();
     void onQrSaveImage();
     void onQrCopyImage();
@@ -128,7 +124,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createStickyNotePage();
     QWidget *createTransparencyPage();
     QWidget *createTimerPage();
     QWidget *createBase64Page();
@@ -146,10 +141,6 @@ private:
 
     void setDownloadUiEnabled(bool enabled);
 
-    void registerGlobalHotkey();
-    void unregisterGlobalHotkey();
-    QString hotkeyDisplayText() const;
-    void onChangeScreenshotHotkey();
     QString mimeTypeForFile(const QString &filePath) const;
     void processBase64File(const QString &filePath);
     void processQrDecodeImage(const QImage &image, const QString &sourceDesc);
@@ -164,6 +155,7 @@ private:
     class VideoTool *m_videoTool;
     class AudioTool *m_audioTool;
     class ColorPickerPage *m_colorPickerPage;
+    ScreenshotTool *m_screenshotTool;
 
     QLabel *m_aboutLabel;
 
@@ -187,10 +179,6 @@ private:
     QPushButton *m_timerLapBtn;
     QTableWidget *m_timerLapList;
     QPushButton *m_timerClearBtn;
-
-    ScreenshotPicker *m_screenshotPicker;
-    QList<PinWindow *> m_pinnedWindows;
-    QLabel *m_screenshotHotkeyLabel;
 
     // ---- Base64 tab widgets ----
     QLineEdit *m_base64FilePath;
@@ -270,10 +258,6 @@ private:
     QPushButton *m_downloadStartBtn;
     QPushButton *m_downloadCancelBtn;
 
-    int m_hotkeyId = 1;
-    UINT m_hotkeyVk = VK_F4;
-    UINT m_hotkeyModifiers = 0;
-
     // ---- Task queues ----
 
     // ---- Statistics ----
@@ -311,7 +295,6 @@ private:
     QLabel *m_qrDecInfoLabel;
     QPushButton *m_qrDecCopyBtn;
     QPushButton *m_qrDecOpenBtn;
-    bool m_screenshotForQr = false;
 
     // ---- Cert (HTTPS证书) tab widgets ----
     QLabel *m_certCaStatusLabel;
