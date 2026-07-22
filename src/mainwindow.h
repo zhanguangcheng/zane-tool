@@ -27,11 +27,11 @@
 #include <QDropEvent>
 
 #include "calculator.h"
-#include "stopwatchtimer.h"
 
 class WindowPicker;
 class ScreenshotTool;
 class TransparencyTool;
+class TimerTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -43,15 +43,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onTimerStart();
-    void onTimerPause();
-    void onTimerStop();
-    void onTimerLap();
-    void onTimerClearLaps();
-    void onTimerTick(const QString &formatted);
-    void onTimerStateChanged(StopwatchTimer::State state);
-    void onTimerLapRecorded(const StopwatchTimer::LapEntry &entry);
-
     void onBase64SelectFile();
     void onBase64Clear();
     void onBase64Copy();
@@ -117,7 +108,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createTimerPage();
     QWidget *createBase64Page();
     QWidget *createTimestampPage();
     QWidget *createCronPage();
@@ -149,18 +139,9 @@ private:
     class ColorPickerPage *m_colorPickerPage;
     ScreenshotTool *m_screenshotTool;
     TransparencyTool *m_transparencyTool;
+    TimerTool *m_timerTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- Timer tab widgets ----
-    StopwatchTimer *m_stopwatch;
-    QLabel *m_timerDisplay;
-    QPushButton *m_timerStartBtn;
-    QPushButton *m_timerPauseBtn;
-    QPushButton *m_timerStopBtn;
-    QPushButton *m_timerLapBtn;
-    QTableWidget *m_timerLapList;
-    QPushButton *m_timerClearBtn;
 
     // ---- Base64 tab widgets ----
     QLineEdit *m_base64FilePath;
