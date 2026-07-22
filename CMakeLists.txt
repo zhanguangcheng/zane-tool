@@ -41,6 +41,7 @@ set(SOURCES
     src/base64tool.cpp
     src/timestamptool.cpp
     src/crontool.cpp
+    src/jwttool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -76,6 +77,7 @@ set(HEADERS
     src/base64tool.h
     src/timestamptool.h
     src/crontool.h
+    src/jwttool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h

@@ -35,6 +35,7 @@ class TimerTool;
 class Base64Tool;
 class TimestampTool;
 class CronTool;
+class JwtTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -46,11 +47,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onJwtParse();
-    void onJwtClear();
-    void onJwtCopyCurrent();
-    void onJwtCopyAll();
-
     void onRandomGenerate();
     void onRandomCopy();
 
@@ -92,7 +88,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createJwtPage();
     QWidget *createDownloadPage();
     QWidget *createRandomStringPage();
     QWidget *createQrCodePage();
@@ -122,20 +117,9 @@ private:
     Base64Tool *m_base64Tool;
     TimestampTool *m_timestampTool;
     CronTool *m_cronTool;
+    JwtTool *m_jwtTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- JWT tab widgets ----
-    QTextEdit *m_jwtInputEdit;
-    QPushButton *m_jwtParseBtn;
-    QPushButton *m_jwtClearBtn;
-    QTabWidget *m_jwtResultTabs;
-    QTextEdit *m_jwtHeaderEdit;
-    QTextEdit *m_jwtPayloadEdit;
-    QTextEdit *m_jwtSignatureEdit;
-    QLabel *m_jwtInfoLabel;
-    QPushButton *m_jwtCopyCurrentBtn;
-    QPushButton *m_jwtCopyAllBtn;
 
     // ---- RandomString tab widgets ----
     QCheckBox *m_randomUpperCheck;

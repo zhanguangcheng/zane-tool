@@ -35,6 +35,7 @@
 #include "base64tool.h"
 #include "timestamptool.h"
 #include "crontool.h"
+#include "jwttool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -81,6 +82,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_base64Tool(new Base64Tool(this))
     , m_timestampTool(new TimestampTool(this))
     , m_cronTool(new CronTool(this))
+    , m_jwtTool(new JwtTool(this))
     , m_imageTool(nullptr)
     , m_videoTool(nullptr)
     , m_audioTool(nullptr)
@@ -137,7 +139,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_base64Tool->createPage());
     m_stackedWidget->addWidget(m_timestampTool->createPage());
     m_stackedWidget->addWidget(m_cronTool->createPage());
-    m_stackedWidget->addWidget(createJwtPage());
+    m_stackedWidget->addWidget(m_jwtTool->createPage());
     m_stackedWidget->addWidget(createDownloadPage());
     m_stackedWidget->addWidget(createRandomStringPage());
     m_stackedWidget->addWidget(createQrCodePage());
@@ -263,277 +265,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
     return QMainWindow::eventFilter(obj, event);
-}
-
-QWidget *MainWindow::createJwtPage()
-{
-    QWidget *page = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(page);
-    mainLayout->setSpacing(16);
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-
-    QGroupBox *inputGroup = new QGroupBox(QStringLiteral("JWT 输入"), page);
-    QVBoxLayout *inputLayout = new QVBoxLayout(inputGroup);
-    inputLayout->setSpacing(12);
-
-    m_jwtInputEdit = new QTextEdit(inputGroup);
-    m_jwtInputEdit->setPlaceholderText(QStringLiteral("请输入或粘贴 JWT 字符串 (header.payload.signature)..."));
-    m_jwtInputEdit->setMaximumHeight(100);
-    m_jwtInputEdit->setAcceptRichText(false);
-    m_jwtInputEdit->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus { border-color: #86b7fe; }"));
-
-    QHBoxLayout *btnRow = new QHBoxLayout();
-    btnRow->setSpacing(8);
-
-    m_jwtParseBtn = new QPushButton(QStringLiteral("解析"), inputGroup);
-    m_jwtParseBtn->setFixedHeight(34);
-    m_jwtParseBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_jwtParseBtn, &QPushButton::clicked, this, &MainWindow::onJwtParse);
-
-    m_jwtClearBtn = new QPushButton(QStringLiteral("清除"), inputGroup);
-    m_jwtClearBtn->setFixedHeight(34);
-    m_jwtClearBtn->setCursor(Qt::PointingHandCursor);
-    m_jwtClearBtn->setStyleSheet(QStringLiteral(
-        "QPushButton { background-color: #6c757d; color: #fff; border: none; "
-        "  border-radius: 6px; font-size: 13px; padding: 0 16px; }"
-        "QPushButton:hover { background-color: #5c636a; }"));
-    connect(m_jwtClearBtn, &QPushButton::clicked, this, &MainWindow::onJwtClear);
-
-    btnRow->addStretch();
-    btnRow->addWidget(m_jwtParseBtn);
-    btnRow->addWidget(m_jwtClearBtn);
-
-    inputLayout->addWidget(m_jwtInputEdit);
-    inputLayout->addLayout(btnRow);
-
-    QGroupBox *resultGroup = new QGroupBox(QStringLiteral("解析结果"), page);
-    QVBoxLayout *resultLayout = new QVBoxLayout(resultGroup);
-    resultLayout->setSpacing(10);
-
-    m_jwtResultTabs = new QTabWidget(resultGroup);
-    m_jwtResultTabs->setStyleSheet(QStringLiteral(
-        "QTabWidget::pane {"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 4px;"
-        "  background-color: #ffffff;"
-        "}"
-        "QTabBar::tab {"
-        "  padding: 8px 20px;"
-        "  border: 1px solid #ced4da;"
-        "  border-bottom: none;"
-        "  border-top-left-radius: 4px;"
-        "  border-top-right-radius: 4px;"
-        "  background-color: #f1f3f5;"
-        "  color: #495057;"
-        "  font-size: 13px;"
-        "}"
-        "QTabBar::tab:selected {"
-        "  background-color: #ffffff;"
-        "  color: #0d6efd;"
-        "  font-weight: bold;"
-        "}"
-        "QTabBar::tab:hover:!selected {"
-        "  background-color: #e9ecef;"
-        "}"));
-
-    auto createResultTab = [](QTabWidget *parent) -> QTextEdit * {
-        QTextEdit *edit = new QTextEdit(parent);
-        edit->setReadOnly(true);
-        edit->setStyleSheet(QStringLiteral(
-            "QTextEdit {"
-            "  font-family: 'Consolas', 'Courier New', monospace;"
-            "  font-size: 12px;"
-            "  border: none;"
-            "  padding: 10px;"
-            "  background-color: #ffffff;"
-            "  color: #212529;"
-            "}"));
-        return edit;
-    };
-
-    m_jwtHeaderEdit = createResultTab(m_jwtResultTabs);
-    m_jwtPayloadEdit = createResultTab(m_jwtResultTabs);
-    m_jwtSignatureEdit = createResultTab(m_jwtResultTabs);
-
-    m_jwtResultTabs->addTab(m_jwtHeaderEdit, QStringLiteral("Header"));
-    m_jwtResultTabs->addTab(m_jwtPayloadEdit, QStringLiteral("Payload"));
-    m_jwtResultTabs->addTab(m_jwtSignatureEdit, QStringLiteral("Signature"));
-
-    QHBoxLayout *bottomRow = new QHBoxLayout();
-    bottomRow->setSpacing(16);
-
-    m_jwtInfoLabel = new QLabel(resultGroup);
-    m_jwtInfoLabel->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 13px;"));
-    m_jwtInfoLabel->setWordWrap(true);
-
-    m_jwtCopyCurrentBtn = new QPushButton(QStringLiteral("复制当前"), resultGroup);
-    m_jwtCopyCurrentBtn->setFixedHeight(34);
-    m_jwtCopyCurrentBtn->setCursor(Qt::PointingHandCursor);
-    m_jwtCopyCurrentBtn->setEnabled(false);
-    connect(m_jwtCopyCurrentBtn, &QPushButton::clicked, this, &MainWindow::onJwtCopyCurrent);
-
-    m_jwtCopyAllBtn = new QPushButton(QStringLiteral("复制全部"), resultGroup);
-    m_jwtCopyAllBtn->setFixedHeight(34);
-    m_jwtCopyAllBtn->setCursor(Qt::PointingHandCursor);
-    m_jwtCopyAllBtn->setEnabled(false);
-    connect(m_jwtCopyAllBtn, &QPushButton::clicked, this, &MainWindow::onJwtCopyAll);
-
-    bottomRow->addWidget(m_jwtInfoLabel, 1);
-    bottomRow->addWidget(m_jwtCopyCurrentBtn);
-    bottomRow->addWidget(m_jwtCopyAllBtn);
-
-    resultLayout->addWidget(m_jwtResultTabs, 1);
-    resultLayout->addLayout(bottomRow);
-
-    mainLayout->addWidget(inputGroup);
-    mainLayout->addWidget(resultGroup, 1);
-
-    return page;
-}
-
-static QByteArray jwtBase64UrlDecode(const QByteArray &input)
-{
-    QByteArray data = input;
-    data.replace('-', '+');
-    data.replace('_', '/');
-    while (data.size() % 4 != 0)
-        data.append('=');
-    return QByteArray::fromBase64(data);
-}
-
-void MainWindow::onJwtParse()
-{
-    QString input = m_jwtInputEdit->toPlainText().trimmed();
-    if (input.isEmpty())
-        return;
-
-    m_jwtHeaderEdit->clear();
-    m_jwtPayloadEdit->clear();
-    m_jwtSignatureEdit->clear();
-    m_jwtInfoLabel->clear();
-
-    QStringList parts = input.split('.');
-    if (parts.size() != 3) {
-        m_jwtHeaderEdit->setPlainText(QStringLiteral("不是有效的 JWT 格式\n\nJWT 应包含三部分，以点号分隔：header.payload.signature"));
-        m_jwtCopyCurrentBtn->setEnabled(false);
-        m_jwtCopyAllBtn->setEnabled(false);
-        return;
-    }
-
-    {
-        QByteArray decoded = jwtBase64UrlDecode(parts[0].toUtf8());
-        if (decoded.isEmpty() && !parts[0].isEmpty()) {
-            m_jwtHeaderEdit->setPlainText(QStringLiteral("无法解码 Header (Base64url 解码失败)"));
-        } else {
-            QJsonDocument doc = QJsonDocument::fromJson(decoded);
-            if (doc.isObject()) {
-                m_jwtHeaderEdit->setPlainText(QString::fromUtf8(doc.toJson(QJsonDocument::Indented)));
-            } else {
-                m_jwtHeaderEdit->setPlainText(QString::fromUtf8(decoded) + QStringLiteral("\n\n[警告: 不是有效的 JSON]"));
-            }
-        }
-    }
-
-    {
-        QByteArray decoded = jwtBase64UrlDecode(parts[1].toUtf8());
-        if (decoded.isEmpty() && !parts[1].isEmpty()) {
-            m_jwtPayloadEdit->setPlainText(QStringLiteral("无法解码 Payload (Base64url 解码失败)"));
-        } else {
-            QJsonDocument doc = QJsonDocument::fromJson(decoded);
-            if (doc.isObject()) {
-                QString payloadStr = QString::fromUtf8(doc.toJson(QJsonDocument::Indented));
-
-                QJsonObject obj = doc.object();
-                QStringList timeInfo;
-                auto addTimeField = [&](const QString &key, const QString &label) {
-                    if (obj.contains(key)) {
-                        QJsonValue val = obj.value(key);
-                        if (val.isDouble()) {
-                            qint64 ts = static_cast<qint64>(val.toDouble());
-                            QDateTime dt;
-                            if (ts > 1000000000000)
-                                dt = QDateTime::fromMSecsSinceEpoch(ts);
-                            else
-                                dt = QDateTime::fromSecsSinceEpoch(ts);
-                            if (dt.isValid()) {
-                                timeInfo.append(QStringLiteral("%1: %2").arg(label, dt.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))));
-                            }
-                        }
-                    }
-                };
-                addTimeField(QStringLiteral("iat"), QStringLiteral("签发时间 (iat)"));
-                addTimeField(QStringLiteral("exp"), QStringLiteral("过期时间 (exp)"));
-                addTimeField(QStringLiteral("nbf"), QStringLiteral("生效时间 (nbf)"));
-
-                if (!timeInfo.isEmpty()) {
-                    payloadStr += QStringLiteral("\n\n--- 时间戳转换 ---\n") + timeInfo.join('\n');
-                }
-
-                m_jwtPayloadEdit->setPlainText(payloadStr);
-            } else {
-                m_jwtPayloadEdit->setPlainText(QString::fromUtf8(decoded) + QStringLiteral("\n\n[警告: 不是有效的 JSON]"));
-            }
-        }
-    }
-
-    m_jwtSignatureEdit->setPlainText(parts[2]);
-
-    m_jwtResultTabs->setCurrentIndex(1);
-    m_jwtCopyCurrentBtn->setEnabled(true);
-    m_jwtCopyAllBtn->setEnabled(true);
-}
-
-void MainWindow::onJwtClear()
-{
-    m_jwtInputEdit->clear();
-    m_jwtHeaderEdit->clear();
-    m_jwtPayloadEdit->clear();
-    m_jwtSignatureEdit->clear();
-    m_jwtInfoLabel->clear();
-    m_jwtCopyCurrentBtn->setEnabled(false);
-    m_jwtCopyAllBtn->setEnabled(false);
-}
-
-void MainWindow::onJwtCopyCurrent()
-{
-    QTextEdit *current = qobject_cast<QTextEdit *>(m_jwtResultTabs->currentWidget());
-    if (!current)
-        return;
-    QString text = current->toPlainText();
-    if (text.isEmpty())
-        return;
-    QApplication::clipboard()->setText(text);
-    QString original = m_jwtCopyCurrentBtn->text();
-    m_jwtCopyCurrentBtn->setText(QStringLiteral("已复制"));
-    m_jwtCopyCurrentBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_jwtCopyCurrentBtn->setText(original);
-        m_jwtCopyCurrentBtn->setEnabled(true);
-    });
-}
-
-void MainWindow::onJwtCopyAll()
-{
-    QString text = QStringLiteral("=== Header ===\n%1\n\n=== Payload ===\n%2\n\n=== Signature ===\n%3")
-        .arg(m_jwtHeaderEdit->toPlainText(), m_jwtPayloadEdit->toPlainText(), m_jwtSignatureEdit->toPlainText());
-    QApplication::clipboard()->setText(text);
-    QString original = m_jwtCopyAllBtn->text();
-    m_jwtCopyAllBtn->setText(QStringLiteral("已复制"));
-    m_jwtCopyAllBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_jwtCopyAllBtn->setText(original);
-        m_jwtCopyAllBtn->setEnabled(true);
-    });
 }
 
 QWidget *MainWindow::createDownloadPage()
