@@ -32,6 +32,7 @@
 #include "screenshottool.h"
 #include "transparencytool.h"
 #include "timertool.h"
+#include "base64tool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -75,6 +76,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_screenshotTool(new ScreenshotTool(this))
     , m_transparencyTool(new TransparencyTool(this))
     , m_timerTool(new TimerTool(this))
+    , m_base64Tool(new Base64Tool(this))
     , m_imageTool(nullptr)
     , m_videoTool(nullptr)
     , m_audioTool(nullptr)
@@ -128,7 +130,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_screenshotTool->createPage());
     m_stackedWidget->addWidget(m_transparencyTool->createPage());
     m_stackedWidget->addWidget(m_timerTool->createPage());
-    m_stackedWidget->addWidget(createBase64Page());
+    m_stackedWidget->addWidget(m_base64Tool->createPage());
     m_stackedWidget->addWidget(createTimestampPage());
     m_stackedWidget->addWidget(createCronPage());
     m_stackedWidget->addWidget(createJwtPage());
@@ -226,161 +228,6 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
     return QMainWindow::nativeEvent(eventType, message, result);
 }
 
-QWidget *MainWindow::createBase64Page()
-{
-    QWidget *page = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(page);
-    mainLayout->setSpacing(16);
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-
-    QGroupBox *group = new QGroupBox(QStringLiteral("图片转Base64"), page);
-    QVBoxLayout *groupLayout = new QVBoxLayout(group);
-    groupLayout->setSpacing(12);
-
-    QHBoxLayout *fileRow = new QHBoxLayout();
-    fileRow->setSpacing(8);
-
-    m_base64FilePath = new QLineEdit(group);
-    m_base64FilePath->setReadOnly(true);
-    m_base64FilePath->setPlaceholderText(QStringLiteral("请选择图片文件，或拖放图片到下方区域..."));
-
-    m_base64SelectBtn = new QPushButton(QStringLiteral("选择图片"), group);
-    m_base64SelectBtn->setFixedHeight(34);
-    m_base64SelectBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_base64SelectBtn, &QPushButton::clicked, this, &MainWindow::onBase64SelectFile);
-
-    m_base64ClearBtn = new QPushButton(QStringLiteral("清除"), group);
-    m_base64ClearBtn->setFixedHeight(34);
-    m_base64ClearBtn->setCursor(Qt::PointingHandCursor);
-    m_base64ClearBtn->setStyleSheet(QStringLiteral(
-        "QPushButton { background-color: #6c757d; color: #fff; border: none; "
-        "  border-radius: 6px; font-size: 13px; padding: 0 16px; }"
-        "QPushButton:hover { background-color: #5c636a; }"));
-    m_base64ClearBtn->setEnabled(false);
-    connect(m_base64ClearBtn, &QPushButton::clicked, this, &MainWindow::onBase64Clear);
-
-    fileRow->addWidget(m_base64FilePath, 1);
-    fileRow->addWidget(m_base64SelectBtn);
-    fileRow->addWidget(m_base64ClearBtn);
-
-    m_base64DropZone = new QLabel(group);
-    m_base64DropZone->setFixedHeight(100);
-    m_base64DropZone->setAlignment(Qt::AlignCenter);
-    m_base64DropZone->setAcceptDrops(true);
-    m_base64DropZone->setCursor(Qt::PointingHandCursor);
-    m_base64DropZone->setStyleSheet(QStringLiteral(
-        "QLabel {"
-        "  border: 2px dashed #ced4da;"
-        "  border-radius: 8px;"
-        "  background-color: #f8f9fa;"
-        "  color: #6c757d;"
-        "  font-size: 14px;"
-        "}"
-        "QLabel:hover {"
-        "  border-color: #0d6efd;"
-        "  color: #0d6efd;"
-        "  background-color: #e7f1ff;"
-        "}"));
-    m_base64DropZone->setText(QStringLiteral("将图片拖放到此处\n或点击上方按钮选择文件"));
-    m_base64DropZone->installEventFilter(this);
-
-    QGroupBox *resultGroup = new QGroupBox(QStringLiteral("转换结果"), page);
-    QVBoxLayout *resultLayout = new QVBoxLayout(resultGroup);
-    resultLayout->setSpacing(10);
-
-    m_base64Output = new QTextEdit(resultGroup);
-    m_base64Output->setReadOnly(true);
-    m_base64Output->setPlaceholderText(QStringLiteral("选择图片后将在此显示 Base64 编码结果..."));
-    m_base64Output->setMinimumHeight(180);
-    m_base64Output->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus {"
-        "  border-color: #86b7fe;"
-        "}"));
-
-    QHBoxLayout *bottomRow = new QHBoxLayout();
-    bottomRow->setSpacing(16);
-
-    m_base64InfoLabel = new QLabel(resultGroup);
-    m_base64InfoLabel->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 13px;"));
-
-    m_base64CopyBtn = new QPushButton(QStringLiteral("复制到剪贴板"), resultGroup);
-    m_base64CopyBtn->setFixedHeight(34);
-    m_base64CopyBtn->setCursor(Qt::PointingHandCursor);
-    m_base64CopyBtn->setEnabled(false);
-    connect(m_base64CopyBtn, &QPushButton::clicked, this, &MainWindow::onBase64Copy);
-
-    bottomRow->addWidget(m_base64InfoLabel, 1);
-    bottomRow->addWidget(m_base64CopyBtn);
-
-    resultLayout->addWidget(m_base64Output);
-    resultLayout->addLayout(bottomRow);
-
-    groupLayout->addLayout(fileRow);
-    groupLayout->addWidget(m_base64DropZone);
-    groupLayout->addWidget(resultGroup, 1);
-
-    mainLayout->addWidget(group, 1);
-
-    return page;
-}
-
-void MainWindow::onBase64SelectFile()
-{
-    QString filePath = QFileDialog::getOpenFileName(this,
-        QStringLiteral("选择图片文件"), QString(),
-        QStringLiteral("图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.gif *.svg *.ico *.tiff *.tif)"));
-    if (filePath.isEmpty())
-        return;
-    processBase64File(filePath);
-}
-
-void MainWindow::onBase64Clear()
-{
-    m_base64FilePath->clear();
-    m_base64Output->clear();
-    m_base64InfoLabel->clear();
-    m_base64CopyBtn->setEnabled(false);
-    m_base64ClearBtn->setEnabled(false);
-    m_base64DropZone->setText(QStringLiteral("将图片拖放到此处\n或点击上方按钮选择文件"));
-    m_base64DropZone->setStyleSheet(QStringLiteral(
-        "QLabel {"
-        "  border: 2px dashed #ced4da;"
-        "  border-radius: 8px;"
-        "  background-color: #f8f9fa;"
-        "  color: #6c757d;"
-        "  font-size: 14px;"
-        "}"
-        "QLabel:hover {"
-        "  border-color: #0d6efd;"
-        "  color: #0d6efd;"
-        "  background-color: #e7f1ff;"
-        "}"));
-}
-
-void MainWindow::onBase64Copy()
-{
-    QString text = m_base64Output->toPlainText();
-    if (text.isEmpty())
-        return;
-    QApplication::clipboard()->setText(text);
-    QString original = m_base64CopyBtn->text();
-    m_base64CopyBtn->setText(QStringLiteral("已复制"));
-    m_base64CopyBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_base64CopyBtn->setText(original);
-        m_base64CopyBtn->setEnabled(true);
-    });
-}
-
 void MainWindow::onTimestampUpdate()
 {
     QDateTime now = QDateTime::currentDateTime();
@@ -475,26 +322,6 @@ void MainWindow::onDatetimeSecCopy()
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == m_base64DropZone) {
-        if (event->type() == QEvent::DragEnter) {
-            QDragEnterEvent *de = static_cast<QDragEnterEvent *>(event);
-            if (de->mimeData()->hasUrls())
-                de->acceptProposedAction();
-            return true;
-        }
-        if (event->type() == QEvent::Drop) {
-            QDropEvent *de = static_cast<QDropEvent *>(event);
-            const QMimeData *mimeData = de->mimeData();
-            if (mimeData->hasUrls()) {
-                for (const QUrl &url : mimeData->urls()) {
-                    if (url.isLocalFile()) {
-                        processBase64File(url.toLocalFile());
-                        return true;
-                    }
-                }
-            }
-        }
-    }
     if (obj == m_qrDecDropZone) {
         if (event->type() == QEvent::DragEnter) {
             QDragEnterEvent *de = static_cast<QDragEnterEvent *>(event);
@@ -524,68 +351,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
     return QMainWindow::eventFilter(obj, event);
-}
-
-void MainWindow::processBase64File(const QString &filePath)
-{
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-            QStringLiteral("无法读取文件：%1").arg(filePath));
-        return;
-    }
-
-    QByteArray data = file.readAll();
-    file.close();
-
-    if (data.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-            QStringLiteral("文件为空：%1").arg(filePath));
-        return;
-    }
-
-    QString base64 = data.toBase64();
-    QString mime = mimeTypeForFile(filePath);
-    QString result = QStringLiteral("data:%1;base64,%2").arg(mime, base64);
-
-    QFileInfo fi(filePath);
-    qint64 originalSize = data.size();
-    qint64 base64Size = result.size();
-
-    m_base64FilePath->setText(QDir::toNativeSeparators(filePath));
-    m_base64Output->setPlainText(result);
-    m_base64InfoLabel->setText(QStringLiteral("文件: %1 | Base64: %2")
-        .arg(Utils::formatFileSize(originalSize), Utils::formatFileSize(base64Size)));
-    m_base64CopyBtn->setEnabled(true);
-    m_base64ClearBtn->setEnabled(true);
-    m_base64DropZone->setText(fi.fileName());
-    m_base64DropZone->setStyleSheet(QStringLiteral(
-        "QLabel {"
-        "  border: 2px solid #198754;"
-        "  border-radius: 8px;"
-        "  background-color: #d1e7dd;"
-        "  color: #0f5132;"
-        "  font-size: 13px;"
-        "}"));
-}
-
-QString MainWindow::mimeTypeForFile(const QString &filePath) const
-{
-    static const QMap<QString, QString> extMap = {
-        {QStringLiteral("jpg"),  QStringLiteral("image/jpeg")},
-        {QStringLiteral("jpeg"), QStringLiteral("image/jpeg")},
-        {QStringLiteral("png"),  QStringLiteral("image/png")},
-        {QStringLiteral("webp"), QStringLiteral("image/webp")},
-        {QStringLiteral("bmp"),  QStringLiteral("image/bmp")},
-        {QStringLiteral("gif"),  QStringLiteral("image/gif")},
-        {QStringLiteral("svg"),  QStringLiteral("image/svg+xml")},
-        {QStringLiteral("ico"),  QStringLiteral("image/x-icon")},
-        {QStringLiteral("tiff"), QStringLiteral("image/tiff")},
-        {QStringLiteral("tif"),  QStringLiteral("image/tiff")},
-    };
-
-    QString ext = QFileInfo(filePath).suffix().toLower();
-    return extMap.value(ext, QStringLiteral("image/png"));
 }
 
 QWidget *MainWindow::createTimestampPage()
@@ -2454,7 +2219,7 @@ void MainWindow::dropEvent(QDropEvent *event)
     if (pageIndex == 7) {
         for (const QUrl &url : mimeData->urls()) {
             if (url.isLocalFile()) {
-                processBase64File(url.toLocalFile());
+                m_base64Tool->processFile(url.toLocalFile());
                 return;
             }
         }

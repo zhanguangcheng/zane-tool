@@ -32,6 +32,7 @@ class WindowPicker;
 class ScreenshotTool;
 class TransparencyTool;
 class TimerTool;
+class Base64Tool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -43,10 +44,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onBase64SelectFile();
-    void onBase64Clear();
-    void onBase64Copy();
-
     void onTimestampUpdate();
     void onTimestampNowSecCopy();
 
@@ -108,7 +105,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createBase64Page();
     QWidget *createTimestampPage();
     QWidget *createCronPage();
     QWidget *createJwtPage();
@@ -123,8 +119,6 @@ private:
 
     void setDownloadUiEnabled(bool enabled);
 
-    QString mimeTypeForFile(const QString &filePath) const;
-    void processBase64File(const QString &filePath);
     void processQrDecodeImage(const QImage &image, const QString &sourceDesc);
     void refreshCertCaStatus();
 
@@ -140,17 +134,9 @@ private:
     ScreenshotTool *m_screenshotTool;
     TransparencyTool *m_transparencyTool;
     TimerTool *m_timerTool;
+    Base64Tool *m_base64Tool;
 
     QLabel *m_aboutLabel;
-
-    // ---- Base64 tab widgets ----
-    QLineEdit *m_base64FilePath;
-    QPushButton *m_base64SelectBtn;
-    QPushButton *m_base64ClearBtn;
-    QLabel *m_base64DropZone;
-    QTextEdit *m_base64Output;
-    QLabel *m_base64InfoLabel;
-    QPushButton *m_base64CopyBtn;
 
     QTimer *m_timestampTimer;
     QLabel *m_timestampNowLabel;
