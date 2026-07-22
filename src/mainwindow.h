@@ -38,6 +38,7 @@ class CronTool;
 class JwtTool;
 class RandomStringTool;
 class QrCodeTool;
+class CertTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -61,14 +62,6 @@ private slots:
     void onIpCopyLan();
     void onIpCopyWan();
 
-    void onCertGenerate();
-    void onCertInstallCa();
-    void onCertUninstallCa();
-    void onCertOutputBrowse();
-    void onCertOpenOutputDir();
-    void onCertOpenCaroot();
-    void onCertProcessOutput();
-
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -80,15 +73,12 @@ private:
     void setupUi();
     void setupSidebar();
     QWidget *createDownloadPage();
-    QWidget *createCertPage();
     QWidget *createIpQueryPage();
     QWidget *createCalcPage();
 
     void showAbout();
 
     void setDownloadUiEnabled(bool enabled);
-
-    void refreshCertCaStatus();
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -108,6 +98,7 @@ private:
     JwtTool *m_jwtTool;
     RandomStringTool *m_randomStringTool;
     QrCodeTool *m_qrCodeTool;
+    CertTool *m_certTool;
 
     QLabel *m_aboutLabel;
 
@@ -145,24 +136,6 @@ private:
     QString m_aria2Path;
     QString m_downloadTempFile;
     QString m_downloadOutputDirPath;
-
-    // ---- Cert (HTTPS证书) tab widgets ----
-    QLabel *m_certCaStatusLabel;
-    QLabel *m_certCarootLabel;
-    QPushButton *m_certInstallCaBtn;
-    QPushButton *m_certUninstallCaBtn;
-    QPushButton *m_certOpenCarootBtn;
-    QTextEdit *m_certDomainsInput;
-    QLineEdit *m_certNameEdit;
-    QLineEdit *m_certOutputDir;
-    QPushButton *m_certOutputBrowseBtn;
-    QPushButton *m_certGenerateBtn;
-    QPushButton *m_certOpenOutputBtn;
-    QTextEdit *m_certLogOutput;
-    QProcess *m_certProcess;
-    QString m_mkcertPath;
-    QString m_certCarootPath;
-    bool m_certRunning;
 
     // ---- IP Query tab widgets ----
     QTextEdit *m_ipLanEdit;

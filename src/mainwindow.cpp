@@ -37,6 +37,7 @@
 #include "jwttool.h"
 #include "randomstringtool.h"
 #include "qrcodetool.h"
+#include "certtool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -66,10 +67,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     : QMainWindow(parent)
     , m_ffmpegPath(ffmpegPath)
     , m_aria2Path(aria2Path)
-    , m_mkcertPath(mkcertPath)
     , m_downloadProcess(nullptr)
-    , m_certProcess(nullptr)
-    , m_certRunning(false)
     , m_downloadCompleted(0)
     , m_downloadFailed(0)
     , m_downloadCancelling(false)
@@ -83,6 +81,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_jwtTool(new JwtTool(this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
+    , m_certTool(new CertTool(this, mkcertPath, this))
     , m_imageTool(nullptr)
     , m_videoTool(nullptr)
     , m_audioTool(nullptr)
@@ -138,7 +137,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(createDownloadPage());
     m_stackedWidget->addWidget(m_randomStringTool->createPage());
     m_stackedWidget->addWidget(m_qrCodeTool->createPage());
-    m_stackedWidget->addWidget(createCertPage());
+    m_stackedWidget->addWidget(m_certTool->createPage());
     m_stackedWidget->addWidget(createIpQueryPage());
     m_stackedWidget->addWidget(createCalcPage());
 
@@ -210,9 +209,11 @@ void MainWindow::setupSidebar()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     m_screenshotTool->unregisterHotkey();
-    if (m_certProcess && m_certProcess->state() != QProcess::NotRunning) {
-        m_certProcess->kill();
-        m_certProcess->waitForFinished(3000);
+    if (QProcess *cp = m_certTool->process()) {
+        if (cp->state() != QProcess::NotRunning) {
+            cp->kill();
+            cp->waitForFinished(3000);
+        }
     }
     QMainWindow::closeEvent(event);
 }
@@ -932,383 +933,6 @@ void MainWindow::dropEvent(QDropEvent *event)
     }
     if (skipped > 0)
         statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
-}
-
-// ==================== Cert (HTTPS证书) Page ====================
-
-QWidget *MainWindow::createCertPage()
-{
-    QWidget *page = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(page);
-    mainLayout->setSpacing(10);
-
-    QGroupBox *caGroup = new QGroupBox(QStringLiteral("本地 CA（根证书）"), page);
-    QVBoxLayout *caLayout = new QVBoxLayout(caGroup);
-
-    m_certCaStatusLabel = new QLabel(QStringLiteral("状态: 检测中…"), caGroup);
-    caLayout->addWidget(m_certCaStatusLabel);
-
-    QHBoxLayout *carootLayout = new QHBoxLayout();
-    carootLayout->addWidget(new QLabel(QStringLiteral("CA 目录:"), caGroup));
-    m_certCarootLabel = new QLabel(QStringLiteral("-"), caGroup);
-    m_certCarootLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_certCarootLabel->setStyleSheet(QStringLiteral("color:#6c757d;"));
-    carootLayout->addWidget(m_certCarootLabel, 1);
-    caLayout->addLayout(carootLayout);
-
-    QHBoxLayout *caBtnLayout = new QHBoxLayout();
-    m_certInstallCaBtn = new QPushButton(QStringLiteral("安装到系统信任"), caGroup);
-    m_certUninstallCaBtn = new QPushButton(QStringLiteral("卸载根证书"), caGroup);
-    m_certUninstallCaBtn->setObjectName(QStringLiteral("dangerBtn"));
-    m_certOpenCarootBtn = new QPushButton(QStringLiteral("打开 CA 目录"), caGroup);
-    connect(m_certInstallCaBtn, &QPushButton::clicked, this, &MainWindow::onCertInstallCa);
-    connect(m_certUninstallCaBtn, &QPushButton::clicked, this, &MainWindow::onCertUninstallCa);
-    connect(m_certOpenCarootBtn, &QPushButton::clicked, this, &MainWindow::onCertOpenCaroot);
-    caBtnLayout->addWidget(m_certInstallCaBtn);
-    caBtnLayout->addWidget(m_certUninstallCaBtn);
-    caBtnLayout->addWidget(m_certOpenCarootBtn);
-    caBtnLayout->addStretch();
-    caLayout->addLayout(caBtnLayout);
-
-    QLabel *caHint = new QLabel(QStringLiteral("安装/卸载需要管理员权限，将弹出 UAC 授权窗口。"), caGroup);
-    caHint->setStyleSheet(QStringLiteral("color:#6c757d;"));
-    caLayout->addWidget(caHint);
-
-    QGroupBox *genGroup = new QGroupBox(QStringLiteral("生成证书"), page);
-    QVBoxLayout *genLayout = new QVBoxLayout(genGroup);
-
-    genLayout->addWidget(new QLabel(QStringLiteral("域名 / IP（每行一个，支持通配符 *.example.com）:"), genGroup));
-    m_certDomainsInput = new QTextEdit(genGroup);
-    m_certDomainsInput->setPlaceholderText(QStringLiteral("localhost\n127.0.0.1\n::1\n*.example.com"));
-    m_certDomainsInput->setAcceptRichText(false);
-    m_certDomainsInput->setMaximumHeight(90);
-    m_certDomainsInput->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus { border-color: #86b7fe; }"));
-    genLayout->addWidget(m_certDomainsInput);
-
-    QHBoxLayout *quickLayout = new QHBoxLayout();
-    quickLayout->addWidget(new QLabel(QStringLiteral("快速添加:"), genGroup));
-    const QStringList quickNames = {
-        QStringLiteral("localhost"), QStringLiteral("127.0.0.1"),
-        QStringLiteral("::1"), QStringLiteral("*.localhost")
-    };
-    for (const QString &name : quickNames) {
-        QPushButton *btn = new QPushButton(name, genGroup);
-        connect(btn, &QPushButton::clicked, this, [this, name]() {
-            const QStringList lines = m_certDomainsInput->toPlainText().split('\n', Qt::SkipEmptyParts);
-            for (const QString &line : lines) {
-                if (line.trimmed() == name)
-                    return;
-            }
-            m_certDomainsInput->append(name);
-        });
-        quickLayout->addWidget(btn);
-    }
-    quickLayout->addStretch();
-    genLayout->addLayout(quickLayout);
-
-    QHBoxLayout *nameLayout = new QHBoxLayout();
-    nameLayout->addWidget(new QLabel(QStringLiteral("文件名:"), genGroup));
-    m_certNameEdit = new QLineEdit(QStringLiteral("dev"), genGroup);
-    m_certNameEdit->setPlaceholderText(QStringLiteral("dev → dev.pem / dev-key.pem"));
-    nameLayout->addWidget(m_certNameEdit, 1);
-    genLayout->addLayout(nameLayout);
-
-    QHBoxLayout *dirLayout = new QHBoxLayout();
-    dirLayout->addWidget(new QLabel(QStringLiteral("输出目录:"), genGroup));
-    m_certOutputDir = new QLineEdit(genGroup);
-    m_certOutputDir->setPlaceholderText(QStringLiteral("必填，点击「浏览」选择证书输出目录"));
-    m_certOutputBrowseBtn = new QPushButton(QStringLiteral("浏览"), genGroup);
-    connect(m_certOutputBrowseBtn, &QPushButton::clicked, this, &MainWindow::onCertOutputBrowse);
-    dirLayout->addWidget(m_certOutputDir, 1);
-    dirLayout->addWidget(m_certOutputBrowseBtn);
-    genLayout->addLayout(dirLayout);
-
-    QHBoxLayout *genBtnLayout = new QHBoxLayout();
-    m_certGenerateBtn = new QPushButton(QStringLiteral("生成证书"), genGroup);
-    m_certOpenOutputBtn = new QPushButton(QStringLiteral("打开输出目录"), genGroup);
-    connect(m_certGenerateBtn, &QPushButton::clicked, this, &MainWindow::onCertGenerate);
-    connect(m_certOpenOutputBtn, &QPushButton::clicked, this, &MainWindow::onCertOpenOutputDir);
-    genBtnLayout->addWidget(m_certGenerateBtn);
-    genBtnLayout->addWidget(m_certOpenOutputBtn);
-    genBtnLayout->addStretch();
-    genLayout->addLayout(genBtnLayout);
-
-    QGroupBox *logGroup = new QGroupBox(QStringLiteral("日志"), page);
-    QVBoxLayout *logLayout = new QVBoxLayout(logGroup);
-    m_certLogOutput = new QTextEdit(logGroup);
-    m_certLogOutput->setReadOnly(true);
-    m_certLogOutput->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus { border-color: #86b7fe; }"));
-    logLayout->addWidget(m_certLogOutput);
-
-    mainLayout->addWidget(caGroup);
-    mainLayout->addWidget(genGroup);
-    mainLayout->addWidget(logGroup, 1);
-
-    refreshCertCaStatus();
-
-    return page;
-}
-
-void MainWindow::refreshCertCaStatus()
-{
-    QProcess proc;
-    proc.start(m_mkcertPath, {QStringLiteral("-CAROOT")});
-    if (!proc.waitForFinished(5000)) {
-        proc.kill();
-        proc.waitForFinished(1000);
-        m_certCaStatusLabel->setText(QStringLiteral("状态: 检测失败"));
-        return;
-    }
-
-    m_certCarootPath = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
-    m_certCarootLabel->setText(m_certCarootPath.isEmpty() ? QStringLiteral("-") : m_certCarootPath);
-    m_certCarootLabel->setToolTip(m_certCarootPath);
-    m_certOpenCarootBtn->setEnabled(!m_certCarootPath.isEmpty());
-
-    bool caExists = !m_certCarootPath.isEmpty()
-        && QFileInfo::exists(m_certCarootPath + QStringLiteral("/rootCA.pem"));
-    if (caExists) {
-        m_certCaStatusLabel->setText(QStringLiteral(
-            "状态: <span style='color:#198754;font-weight:bold;'>CA 已生成</span>"));
-    } else {
-        m_certCaStatusLabel->setText(QStringLiteral(
-            "状态: <span style='color:#dc3545;font-weight:bold;'>CA 未生成</span>"
-            "（点击「安装到系统信任」创建并信任）"));
-    }
-}
-
-void MainWindow::onCertInstallCa()
-{
-    QString path = QDir::toNativeSeparators(m_mkcertPath);
-    QString args = QStringLiteral("-install");
-
-    SHELLEXECUTEINFOW sei = {};
-    sei.cbSize = sizeof(sei);
-    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-    sei.hwnd = reinterpret_cast<HWND>(winId());
-    sei.lpVerb = L"runas";
-    sei.lpFile = reinterpret_cast<LPCWSTR>(path.utf16());
-    sei.lpParameters = reinterpret_cast<LPCWSTR>(args.utf16());
-    sei.nShow = SW_SHOW;
-
-    if (!ShellExecuteExW(&sei)) {
-        if (GetLastError() != ERROR_CANCELLED) {
-            QMessageBox::warning(this, QStringLiteral("错误"),
-                QStringLiteral("无法以管理员身份启动 mkcert"));
-        }
-        return;
-    }
-
-    if (sei.hProcess) {
-        WaitForSingleObject(sei.hProcess, 60000);
-        CloseHandle(sei.hProcess);
-    }
-
-    refreshCertCaStatus();
-    m_certLogOutput->append(QStringLiteral("> mkcert -install（已请求管理员权限）"));
-    Utils::logToFile(QStringLiteral("[CERT] mkcert -install requested"));
-}
-
-void MainWindow::onCertUninstallCa()
-{
-    auto ret = QMessageBox::question(this, QStringLiteral("确认"),
-        QStringLiteral("确定要从系统信任库卸载本地 CA 根证书吗？"));
-    if (ret != QMessageBox::Yes)
-        return;
-
-    QString path = QDir::toNativeSeparators(m_mkcertPath);
-    QString args = QStringLiteral("-uninstall");
-
-    SHELLEXECUTEINFOW sei = {};
-    sei.cbSize = sizeof(sei);
-    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
-    sei.hwnd = reinterpret_cast<HWND>(winId());
-    sei.lpVerb = L"runas";
-    sei.lpFile = reinterpret_cast<LPCWSTR>(path.utf16());
-    sei.lpParameters = reinterpret_cast<LPCWSTR>(args.utf16());
-    sei.nShow = SW_SHOW;
-
-    if (!ShellExecuteExW(&sei)) {
-        if (GetLastError() != ERROR_CANCELLED) {
-            QMessageBox::warning(this, QStringLiteral("错误"),
-                QStringLiteral("无法以管理员身份启动 mkcert"));
-        }
-        return;
-    }
-
-    if (sei.hProcess) {
-        WaitForSingleObject(sei.hProcess, 60000);
-        CloseHandle(sei.hProcess);
-    }
-
-    refreshCertCaStatus();
-    m_certLogOutput->append(QStringLiteral("> mkcert -uninstall（已请求管理员权限）"));
-    Utils::logToFile(QStringLiteral("[CERT] mkcert -uninstall requested"));
-}
-
-void MainWindow::onCertOutputBrowse()
-{
-    QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择输出目录"),
-                                                    m_certOutputDir->text());
-    if (!dir.isEmpty())
-        m_certOutputDir->setText(dir);
-}
-
-void MainWindow::onCertOpenOutputDir()
-{
-    QString dir = m_certOutputDir->text().trimmed();
-    if (dir.isEmpty())
-        return;
-    QDir().mkpath(dir);
-    QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
-}
-
-void MainWindow::onCertOpenCaroot()
-{
-    if (m_certCarootPath.isEmpty())
-        return;
-    QDesktopServices::openUrl(QUrl::fromLocalFile(m_certCarootPath));
-}
-
-void MainWindow::onCertGenerate()
-{
-    if (m_certRunning)
-        return;
-
-    QStringList domains;
-    const QStringList lines = m_certDomainsInput->toPlainText().split('\n', Qt::SkipEmptyParts);
-    for (const QString &line : lines) {
-        const QStringList parts = line.split(QRegularExpression(QStringLiteral("[,;\\s]+")),
-                                             Qt::SkipEmptyParts);
-        for (const QString &part : parts)
-            domains << part.trimmed();
-    }
-
-    if (domains.isEmpty()) {
-        QMessageBox::information(this, QStringLiteral("提示"),
-            QStringLiteral("请输入至少一个域名或 IP"));
-        return;
-    }
-
-    QRegularExpression validRe(QStringLiteral("^[A-Za-z0-9*_.\\-:]+$"));
-    for (const QString &d : domains) {
-        if (!validRe.match(d).hasMatch()) {
-            QMessageBox::warning(this, QStringLiteral("提示"),
-                QStringLiteral("包含非法字符的条目: %1").arg(d));
-            return;
-        }
-    }
-
-    QString name = m_certNameEdit->text().trimmed();
-    name.remove(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]")));
-    if (name.isEmpty())
-        name = QStringLiteral("dev");
-
-    QString outDir = m_certOutputDir->text().trimmed();
-    if (outDir.isEmpty()) {
-        QMessageBox::information(this, QStringLiteral("提示"),
-            QStringLiteral("请先选择输出目录"));
-        return;
-    }
-    if (!QDir().mkpath(outDir)) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-            QStringLiteral("无法创建输出目录: %1").arg(outDir));
-        return;
-    }
-
-    QString certFile = outDir + QStringLiteral("/") + name + QStringLiteral(".pem");
-    QString keyFile = outDir + QStringLiteral("/") + name + QStringLiteral("-key.pem");
-
-    QStringList args;
-    args << QStringLiteral("-cert-file") << certFile
-         << QStringLiteral("-key-file") << keyFile;
-    args << domains;
-
-    if (m_certProcess) {
-        m_certProcess->deleteLater();
-        m_certProcess = nullptr;
-    }
-    m_certProcess = new QProcess(this);
-    m_certProcess->setProcessChannelMode(QProcess::MergedChannels);
-
-    connect(m_certProcess, &QProcess::readyReadStandardOutput,
-            this, &MainWindow::onCertProcessOutput);
-
-    connect(m_certProcess,
-            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, certFile, keyFile](int exitCode, QProcess::ExitStatus exitStatus) {
-                Q_UNUSED(exitStatus);
-                m_certRunning = false;
-                m_certGenerateBtn->setEnabled(true);
-                m_certDomainsInput->setEnabled(true);
-                m_certNameEdit->setEnabled(true);
-                m_certOutputBrowseBtn->setEnabled(true);
-
-                bool ok = exitCode == 0
-                    && QFileInfo::exists(certFile) && QFileInfo(certFile).size() > 0
-                    && QFileInfo::exists(keyFile) && QFileInfo(keyFile).size() > 0;
-
-                if (ok) {
-                    m_certLogOutput->append(
-                        QStringLiteral("证书生成成功:\n  %1\n  %2").arg(certFile, keyFile));
-                    Utils::logToFile(QStringLiteral("[CERT] Generated: %1").arg(certFile));
-                    QMessageBox::information(this, QStringLiteral("成功"),
-                        QStringLiteral("证书生成成功：\n%1\n%2").arg(certFile, keyFile));
-                } else {
-                    m_certLogOutput->append(
-                        QStringLiteral("生成失败，退出码: %1").arg(exitCode));
-                    Utils::logToFile(QStringLiteral("[CERT] Generate failed, code=%1").arg(exitCode));
-                }
-            });
-
-    connect(m_certProcess, &QProcess::errorOccurred,
-            this, [this](QProcess::ProcessError error) {
-                Q_UNUSED(error);
-                m_certRunning = false;
-                m_certGenerateBtn->setEnabled(true);
-                m_certDomainsInput->setEnabled(true);
-                m_certNameEdit->setEnabled(true);
-                m_certOutputBrowseBtn->setEnabled(true);
-                m_certLogOutput->append(
-                    QStringLiteral("进程错误: ") + m_certProcess->errorString());
-            });
-
-    m_certRunning = true;
-    m_certGenerateBtn->setEnabled(false);
-    m_certDomainsInput->setEnabled(false);
-    m_certNameEdit->setEnabled(false);
-    m_certOutputBrowseBtn->setEnabled(false);
-
-    m_certLogOutput->append(QStringLiteral("> mkcert %1").arg(args.join(' ')));
-    m_certProcess->start(m_mkcertPath, args);
-}
-
-void MainWindow::onCertProcessOutput()
-{
-    if (!m_certProcess)
-        return;
-    QString output = QString::fromUtf8(m_certProcess->readAllStandardOutput());
-    m_certLogOutput->append(output.trimmed());
 }
 
 // ==================== IP Query Page ====================
