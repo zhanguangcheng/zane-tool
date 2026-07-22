@@ -33,6 +33,7 @@ set(SOURCES
     src/pinwindow.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
+    src/calculator.cpp
     src/resources.qrc
     src/third_party/qrcodegen.cpp
     src/third_party/quirc.c
@@ -57,6 +58,7 @@ set(HEADERS
     src/pinwindow.h
     src/stopwatchtimer.h
     src/utils.h
+    src/calculator.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})

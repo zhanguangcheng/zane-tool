@@ -218,6 +218,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_pickedColor(Qt::white)
     , m_colorPicker(new ColorPicker(nullptr))
     , m_windowPicker(new WindowPicker(nullptr))
+    , m_calcPage(nullptr)
     , m_stopwatch(new StopwatchTimer(this))
     , m_screenshotPicker(new ScreenshotPicker(nullptr))
     , m_screenshotHotkeyLabel(nullptr)
@@ -376,6 +377,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(createQrCodePage());
     m_stackedWidget->addWidget(createCertPage());
     m_stackedWidget->addWidget(createIpQueryPage());
+    m_stackedWidget->addWidget(createCalcPage());
 
     m_stackedWidget->setCurrentIndex(0);
 
@@ -416,6 +418,7 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("截图贴图"), 4);
     addTool(QStringLiteral("窗口透明"), 5);
     addTool(QStringLiteral("秒表计时"), 6);
+    addTool(QStringLiteral("计算器"), 16);
 
     addCategory(QStringLiteral("\U0001F527 开发工具"));
     addTool(QStringLiteral("图片转Base64"), 7);
@@ -5540,4 +5543,10 @@ void MainWindow::onIpCopyWan()
         m_ipCopyWanBtn->setText(original);
         m_ipCopyWanBtn->setEnabled(true);
     });
+}
+
+QWidget *MainWindow::createCalcPage()
+{
+    m_calcPage = new CalculatorPage(this);
+    return m_calcPage;
 }

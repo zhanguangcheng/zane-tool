@@ -28,6 +28,7 @@
 
 #include "imageprocessor.h"
 #include "videoprocessor.h"
+#include "calculator.h"
 #include "audioprocessor.h"
 #include "stopwatchtimer.h"
 
@@ -179,6 +180,7 @@ private:
     QWidget *createQrCodePage();
     QWidget *createCertPage();
     QWidget *createIpQueryPage();
+    QWidget *createCalcPage();
 
     void processNextImage();
     void processNextVideo();
@@ -485,6 +487,8 @@ private:
     QPushButton *m_ipCopyWanBtn;
     QNetworkAccessManager *m_ipNetworkManager;
     QString m_ipLanText;
+
+    CalculatorPage *m_calcPage;
 };
 
 #endif // MAINWINDOW_H
