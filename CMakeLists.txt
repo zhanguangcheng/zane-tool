@@ -36,6 +36,7 @@ set(SOURCES
     src/screenshotpicker.cpp
     src/pinwindow.cpp
     src/screenshottool.cpp
+    src/transparencytool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -66,6 +67,7 @@ set(HEADERS
     src/screenshotpicker.h
     src/pinwindow.h
     src/screenshottool.h
+    src/transparencytool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h

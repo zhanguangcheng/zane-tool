@@ -31,6 +31,7 @@
 
 class WindowPicker;
 class ScreenshotTool;
+class TransparencyTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -42,14 +43,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onPickCancelled();
-
-    void onTransparencyRefresh();
-    void onTransparencySelectionChanged();
-    void onTransparencySliderChanged(int value);
-    void onTransparencyPickWindow();
-    void onWindowPicked(HWND hwnd);
-
     void onTimerStart();
     void onTimerPause();
     void onTimerStop();
@@ -124,7 +117,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createTransparencyPage();
     QWidget *createTimerPage();
     QWidget *createBase64Page();
     QWidget *createTimestampPage();
@@ -156,19 +148,9 @@ private:
     class AudioTool *m_audioTool;
     class ColorPickerPage *m_colorPickerPage;
     ScreenshotTool *m_screenshotTool;
+    TransparencyTool *m_transparencyTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- Transparency tab widgets ----
-    QListWidget *m_transparencyWindowList;
-    QPushButton *m_transparencyRefreshBtn;
-    QPushButton *m_transparencyPickBtn;
-    QSlider *m_transparencySlider;
-    QLabel *m_transparencyValueLabel;
-    QLabel *m_transparencyStatusLabel;
-    HWND m_transparencyTargetHwnd;
-    LONG_PTR m_transparencyOriginalExStyle;
-    WindowPicker *m_windowPicker;
 
     // ---- Timer tab widgets ----
     StopwatchTimer *m_stopwatch;
