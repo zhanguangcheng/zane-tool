@@ -18,8 +18,6 @@
 #include <QHBoxLayout>
 #include <QTabWidget>
 #include <QProcess>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 
 #include <windows.h>
 
@@ -27,6 +25,7 @@
 #include <QDropEvent>
 
 #include "calculator.h"
+#include "iptool.h"
 
 class WindowPicker;
 class ScreenshotTool;
@@ -49,11 +48,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
-private slots:
-    void onIpWanQuery();
-    void onIpCopyLan();
-    void onIpCopyWan();
-
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
@@ -64,7 +58,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createIpQueryPage();
     QWidget *createCalcPage();
 
     void showAbout();
@@ -98,16 +91,7 @@ private:
 
     QString m_aria2Path;
 
-    // ---- IP Query tab widgets ----
-    QTextEdit *m_ipLanEdit;
-    QPushButton *m_ipCopyLanBtn;
-    QComboBox *m_ipWanSourceCombo;
-    QPushButton *m_ipWanQueryBtn;
-    QLineEdit *m_ipWanEdit;
-    QPushButton *m_ipCopyWanBtn;
-    QNetworkAccessManager *m_ipNetworkManager;
-    QString m_ipLanText;
-
+    IpTool *m_ipTool;
     CalculatorPage *m_calcPage;
 };
 
