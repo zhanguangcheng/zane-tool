@@ -34,6 +34,7 @@ class TransparencyTool;
 class TimerTool;
 class Base64Tool;
 class TimestampTool;
+class CronTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -45,12 +46,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onCronInputChanged();
-    void onCronPresetChanged(int index);
-    void onCronCountChanged(int index);
-    void onCronCopyAll();
-    void onCronUpdateTimes();
-
     void onJwtParse();
     void onJwtClear();
     void onJwtCopyCurrent();
@@ -97,7 +92,6 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createCronPage();
     QWidget *createJwtPage();
     QWidget *createDownloadPage();
     QWidget *createRandomStringPage();
@@ -127,23 +121,9 @@ private:
     TimerTool *m_timerTool;
     Base64Tool *m_base64Tool;
     TimestampTool *m_timestampTool;
+    CronTool *m_cronTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- Cron tab widgets ----
-    QLineEdit *m_cronInputEdit;
-    QComboBox *m_cronPresetCombo;
-    QComboBox *m_cronCountCombo;
-    QPushButton *m_cronCopyBtn;
-    QTableWidget *m_cronNextTable;
-    QLabel *m_cronMinField;
-    QLabel *m_cronHourField;
-    QLabel *m_cronDomField;
-    QLabel *m_cronMonthField;
-    QLabel *m_cronDowField;
-    QLabel *m_cronErrorLabel;
-    QLabel *m_cronDescLabel;
-    QTimer *m_cronTimer;
 
     // ---- JWT tab widgets ----
     QTextEdit *m_jwtInputEdit;
