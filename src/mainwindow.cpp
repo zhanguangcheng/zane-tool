@@ -36,6 +36,7 @@
 #include "crontool.h"
 #include "jwttool.h"
 #include "randomstringtool.h"
+#include "qrcodetool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -61,9 +62,6 @@
 #include <QImage>
 #include <QPainter>
 
-#include "third_party/qrcodegen.hpp"
-#include "third_party/quirc.h"
-
 MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent)
     : QMainWindow(parent)
     , m_ffmpegPath(ffmpegPath)
@@ -84,6 +82,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_cronTool(new CronTool(this))
     , m_jwtTool(new JwtTool(this))
     , m_randomStringTool(new RandomStringTool(this))
+    , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
     , m_imageTool(nullptr)
     , m_videoTool(nullptr)
     , m_audioTool(nullptr)
@@ -95,11 +94,6 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
 
     m_screenshotTool->loadConfig();
     m_screenshotTool->registerHotkey();
-
-    connect(m_screenshotTool, &ScreenshotTool::qrScreenshotCaptured,
-            this, [this](const QImage &image) {
-        processQrDecodeImage(image, QStringLiteral("屏幕截图"));
-    });
 }
 
 void MainWindow::setupUi()
@@ -143,7 +137,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_jwtTool->createPage());
     m_stackedWidget->addWidget(createDownloadPage());
     m_stackedWidget->addWidget(m_randomStringTool->createPage());
-    m_stackedWidget->addWidget(createQrCodePage());
+    m_stackedWidget->addWidget(m_qrCodeTool->createPage());
     m_stackedWidget->addWidget(createCertPage());
     m_stackedWidget->addWidget(createIpQueryPage());
     m_stackedWidget->addWidget(createCalcPage());
@@ -237,34 +231,6 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == m_qrDecDropZone) {
-        if (event->type() == QEvent::DragEnter) {
-            QDragEnterEvent *de = static_cast<QDragEnterEvent *>(event);
-            if (de->mimeData()->hasUrls())
-                de->acceptProposedAction();
-            return true;
-        }
-        if (event->type() == QEvent::Drop) {
-            QDropEvent *de = static_cast<QDropEvent *>(event);
-            const QMimeData *mimeData = de->mimeData();
-            if (mimeData->hasUrls()) {
-                for (const QUrl &url : mimeData->urls()) {
-                    if (url.isLocalFile()) {
-                        QString filePath = url.toLocalFile();
-                        QImage image(filePath);
-                        if (image.isNull()) {
-                            QMessageBox::warning(this, QStringLiteral("错误"),
-                                QStringLiteral("无法加载图片：%1").arg(filePath));
-                            return true;
-                        }
-                        m_qrDecFilePath->setText(QDir::toNativeSeparators(filePath));
-                        processQrDecodeImage(image, QFileInfo(filePath).fileName());
-                        return true;
-                    }
-                }
-            }
-        }
-    }
     return QMainWindow::eventFilter(obj, event);
 }
 
@@ -937,20 +903,6 @@ void MainWindow::dropEvent(QDropEvent *event)
         }
     }
 
-    if (pageIndex == 13) {
-        for (const QUrl &url : mimeData->urls()) {
-            if (url.isLocalFile()) {
-                QString filePath = url.toLocalFile();
-                QImage image(filePath);
-                if (!image.isNull()) {
-                    m_qrDecFilePath->setText(QDir::toNativeSeparators(filePath));
-                    processQrDecodeImage(image, QFileInfo(filePath).fileName());
-                }
-                return;
-            }
-        }
-    }
-
     QListWidget *list = nullptr;
     if (pageIndex == 0)
         list = m_imageTool ? m_imageTool->fileListWidget() : nullptr;
@@ -980,458 +932,6 @@ void MainWindow::dropEvent(QDropEvent *event)
     }
     if (skipped > 0)
         statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
-}
-
-// ==================== QR Code Page ====================
-
-QWidget *MainWindow::createQrCodePage()
-{
-    QWidget *page = new QWidget(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(page);
-    mainLayout->setSpacing(0);
-    mainLayout->setContentsMargins(20, 20, 20, 20);
-
-    QTabWidget *tabs = new QTabWidget(page);
-    tabs->setStyleSheet(QStringLiteral(
-        "QTabWidget::pane {"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 4px;"
-        "  background-color: #ffffff;"
-        "}"
-        "QTabBar::tab {"
-        "  padding: 8px 20px;"
-        "  border: 1px solid #ced4da;"
-        "  border-bottom: none;"
-        "  border-top-left-radius: 4px;"
-        "  border-top-right-radius: 4px;"
-        "  background-color: #f1f3f5;"
-        "  color: #495057;"
-        "  font-size: 13px;"
-        "}"
-        "QTabBar::tab:selected {"
-        "  background-color: #ffffff;"
-        "  color: #0d6efd;"
-        "  font-weight: bold;"
-        "}"
-        "QTabBar::tab:hover:!selected {"
-        "  background-color: #e9ecef;"
-        "}"));
-
-    // ---- Generate tab ----
-    QWidget *genTab = new QWidget(tabs);
-    QVBoxLayout *genLayout = new QVBoxLayout(genTab);
-    genLayout->setSpacing(12);
-    genLayout->setContentsMargins(0, 12, 0, 12);
-
-    QGroupBox *inputGroup = new QGroupBox(QStringLiteral("内容"), genTab);
-    QVBoxLayout *inputLayout = new QVBoxLayout(inputGroup);
-    inputLayout->setSpacing(10);
-
-    m_qrGenInput = new QTextEdit(inputGroup);
-    m_qrGenInput->setPlaceholderText(QStringLiteral("输入要生成二维码的文本或链接..."));
-    m_qrGenInput->setMaximumHeight(100);
-    m_qrGenInput->setAcceptRichText(false);
-    m_qrGenInput->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus { border-color: #86b7fe; }"));
-    connect(m_qrGenInput, &QTextEdit::textChanged, this, &MainWindow::onQrGenerate);
-
-    QHBoxLayout *optionRow = new QHBoxLayout();
-    optionRow->setSpacing(8);
-
-    QLabel *eccLabel = new QLabel(QStringLiteral("纠错等级:"), inputGroup);
-    m_qrGenEccCombo = new QComboBox(inputGroup);
-    m_qrGenEccCombo->addItem(QStringLiteral("L (7%)"), 0);
-    m_qrGenEccCombo->addItem(QStringLiteral("M (15%)"), 1);
-    m_qrGenEccCombo->addItem(QStringLiteral("Q (25%)"), 2);
-    m_qrGenEccCombo->addItem(QStringLiteral("H (30%)"), 3);
-    m_qrGenEccCombo->setCurrentIndex(1);
-    connect(m_qrGenEccCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &MainWindow::onQrGenerate);
-
-    QLabel *scaleLabel = new QLabel(QStringLiteral("尺寸:"), inputGroup);
-    m_qrGenScaleSpin = new QSpinBox(inputGroup);
-    m_qrGenScaleSpin->setRange(2, 10);
-    m_qrGenScaleSpin->setValue(4);
-    m_qrGenScaleSpin->setSuffix(QStringLiteral(" px/格"));
-    connect(m_qrGenScaleSpin, QOverload<int>::of(&QSpinBox::valueChanged),
-            this, &MainWindow::onQrGenerate);
-
-    optionRow->addWidget(eccLabel);
-    optionRow->addWidget(m_qrGenEccCombo);
-    optionRow->addSpacing(16);
-    optionRow->addWidget(scaleLabel);
-    optionRow->addWidget(m_qrGenScaleSpin);
-    optionRow->addStretch(1);
-
-    inputLayout->addWidget(m_qrGenInput);
-    inputLayout->addLayout(optionRow);
-
-    QGroupBox *previewGroup = new QGroupBox(QStringLiteral("预览"), genTab);
-    QVBoxLayout *previewLayout = new QVBoxLayout(previewGroup);
-    previewLayout->setSpacing(10);
-
-    m_qrGenPreview = new QLabel(previewGroup);
-    m_qrGenPreview->setAlignment(Qt::AlignCenter);
-    m_qrGenPreview->setMinimumHeight(260);
-    m_qrGenPreview->setStyleSheet(QStringLiteral(
-        "QLabel { border: 1px solid #ced4da; border-radius: 6px; background-color: #ffffff; }"));
-    m_qrGenPreview->setText(QStringLiteral("输入内容后自动生成二维码"));
-
-    m_qrGenStatusLabel = new QLabel(previewGroup);
-    m_qrGenStatusLabel->setAlignment(Qt::AlignCenter);
-    m_qrGenStatusLabel->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 13px;"));
-
-    QHBoxLayout *genBtnRow = new QHBoxLayout();
-    genBtnRow->setSpacing(8);
-
-    m_qrGenSaveBtn = new QPushButton(QStringLiteral("保存为 PNG"), previewGroup);
-    m_qrGenSaveBtn->setFixedHeight(34);
-    m_qrGenSaveBtn->setCursor(Qt::PointingHandCursor);
-    m_qrGenSaveBtn->setEnabled(false);
-    connect(m_qrGenSaveBtn, &QPushButton::clicked, this, &MainWindow::onQrSaveImage);
-
-    m_qrGenCopyBtn = new QPushButton(QStringLiteral("复制到剪贴板"), previewGroup);
-    m_qrGenCopyBtn->setFixedHeight(34);
-    m_qrGenCopyBtn->setCursor(Qt::PointingHandCursor);
-    m_qrGenCopyBtn->setEnabled(false);
-    connect(m_qrGenCopyBtn, &QPushButton::clicked, this, &MainWindow::onQrCopyImage);
-
-    genBtnRow->addStretch(1);
-    genBtnRow->addWidget(m_qrGenSaveBtn);
-    genBtnRow->addWidget(m_qrGenCopyBtn);
-
-    previewLayout->addWidget(m_qrGenPreview, 1);
-    previewLayout->addWidget(m_qrGenStatusLabel);
-    previewLayout->addLayout(genBtnRow);
-
-    genLayout->addWidget(inputGroup);
-    genLayout->addWidget(previewGroup, 1);
-
-    // ---- Decode tab ----
-    QWidget *decTab = new QWidget(tabs);
-    QVBoxLayout *decLayout = new QVBoxLayout(decTab);
-    decLayout->setSpacing(12);
-    decLayout->setContentsMargins(0, 12, 0, 12);
-
-    QGroupBox *sourceGroup = new QGroupBox(QStringLiteral("选择图片来源"), decTab);
-    QVBoxLayout *sourceLayout = new QVBoxLayout(sourceGroup);
-    sourceLayout->setSpacing(10);
-
-    QHBoxLayout *fileRow = new QHBoxLayout();
-    fileRow->setSpacing(8);
-
-    m_qrDecFilePath = new QLineEdit(sourceGroup);
-    m_qrDecFilePath->setReadOnly(true);
-    m_qrDecFilePath->setPlaceholderText(QStringLiteral("请选择图片文件，或使用屏幕识别 / 拖放图片..."));
-
-    m_qrDecSelectBtn = new QPushButton(QStringLiteral("选择图片"), sourceGroup);
-    m_qrDecSelectBtn->setFixedHeight(34);
-    m_qrDecSelectBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_qrDecSelectBtn, &QPushButton::clicked, this, &MainWindow::onQrSelectImage);
-
-    m_qrDecScreenBtn = new QPushButton(QStringLiteral("屏幕识别"), sourceGroup);
-    m_qrDecScreenBtn->setFixedHeight(34);
-    m_qrDecScreenBtn->setCursor(Qt::PointingHandCursor);
-    connect(m_qrDecScreenBtn, &QPushButton::clicked, this, &MainWindow::onQrScreenCapture);
-
-    fileRow->addWidget(m_qrDecFilePath, 1);
-    fileRow->addWidget(m_qrDecSelectBtn);
-    fileRow->addWidget(m_qrDecScreenBtn);
-
-    m_qrDecDropZone = new QLabel(sourceGroup);
-    m_qrDecDropZone->setFixedHeight(70);
-    m_qrDecDropZone->setAlignment(Qt::AlignCenter);
-    m_qrDecDropZone->setAcceptDrops(true);
-    m_qrDecDropZone->setCursor(Qt::PointingHandCursor);
-    m_qrDecDropZone->setStyleSheet(QStringLiteral(
-        "QLabel {"
-        "  border: 2px dashed #ced4da;"
-        "  border-radius: 8px;"
-        "  background-color: #f8f9fa;"
-        "  color: #6c757d;"
-        "  font-size: 14px;"
-        "}"
-        "QLabel:hover {"
-        "  border-color: #0d6efd;"
-        "  color: #0d6efd;"
-        "  background-color: #e7f1ff;"
-        "}"));
-    m_qrDecDropZone->setText(QStringLiteral("将图片拖放到此处进行识别"));
-    m_qrDecDropZone->installEventFilter(this);
-
-    sourceLayout->addLayout(fileRow);
-    sourceLayout->addWidget(m_qrDecDropZone);
-
-    QGroupBox *resultGroup = new QGroupBox(QStringLiteral("识别结果"), decTab);
-    QVBoxLayout *resultLayout = new QVBoxLayout(resultGroup);
-    resultLayout->setSpacing(10);
-
-    QHBoxLayout *resultBody = new QHBoxLayout();
-    resultBody->setSpacing(12);
-
-    m_qrDecPreview = new QLabel(resultGroup);
-    m_qrDecPreview->setFixedSize(200, 200);
-    m_qrDecPreview->setAlignment(Qt::AlignCenter);
-    m_qrDecPreview->setStyleSheet(QStringLiteral(
-        "QLabel { border: 1px solid #ced4da; border-radius: 6px; background-color: #f8f9fa; color: #6c757d; }"));
-    m_qrDecPreview->setText(QStringLiteral("图片预览"));
-
-    m_qrDecOutput = new QTextEdit(resultGroup);
-    m_qrDecOutput->setReadOnly(true);
-    m_qrDecOutput->setPlaceholderText(QStringLiteral("识别结果将在此显示..."));
-    m_qrDecOutput->setStyleSheet(QStringLiteral(
-        "QTextEdit {"
-        "  font-family: 'Consolas', 'Courier New', monospace;"
-        "  font-size: 12px;"
-        "  border: 1px solid #ced4da;"
-        "  border-radius: 6px;"
-        "  padding: 10px;"
-        "  background-color: #ffffff;"
-        "  color: #212529;"
-        "}"
-        "QTextEdit:focus {"
-        "  border-color: #86b7fe;"
-        "}"));
-
-    resultBody->addWidget(m_qrDecPreview);
-    resultBody->addWidget(m_qrDecOutput, 1);
-
-    QHBoxLayout *bottomRow = new QHBoxLayout();
-    bottomRow->setSpacing(8);
-
-    m_qrDecInfoLabel = new QLabel(resultGroup);
-    m_qrDecInfoLabel->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 13px;"));
-
-    m_qrDecCopyBtn = new QPushButton(QStringLiteral("复制到剪贴板"), resultGroup);
-    m_qrDecCopyBtn->setFixedHeight(34);
-    m_qrDecCopyBtn->setCursor(Qt::PointingHandCursor);
-    m_qrDecCopyBtn->setEnabled(false);
-    connect(m_qrDecCopyBtn, &QPushButton::clicked, this, &MainWindow::onQrCopyResult);
-
-    m_qrDecOpenBtn = new QPushButton(QStringLiteral("打开链接"), resultGroup);
-    m_qrDecOpenBtn->setFixedHeight(34);
-    m_qrDecOpenBtn->setCursor(Qt::PointingHandCursor);
-    m_qrDecOpenBtn->setEnabled(false);
-    connect(m_qrDecOpenBtn, &QPushButton::clicked, this, &MainWindow::onQrOpenLink);
-
-    bottomRow->addWidget(m_qrDecInfoLabel, 1);
-    bottomRow->addWidget(m_qrDecCopyBtn);
-    bottomRow->addWidget(m_qrDecOpenBtn);
-
-    resultLayout->addLayout(resultBody, 1);
-    resultLayout->addLayout(bottomRow);
-
-    decLayout->addWidget(sourceGroup);
-    decLayout->addWidget(resultGroup, 1);
-
-    tabs->addTab(genTab, QStringLiteral("生成"));
-    tabs->addTab(decTab, QStringLiteral("识别"));
-
-    mainLayout->addWidget(tabs, 1);
-
-    return page;
-}
-
-void MainWindow::onQrGenerate()
-{
-    QString text = m_qrGenInput->toPlainText();
-    if (text.isEmpty()) {
-        m_qrGenPixmap = QPixmap();
-        m_qrGenPreview->setPixmap(QPixmap());
-        m_qrGenPreview->setText(QStringLiteral("输入内容后自动生成二维码"));
-        m_qrGenStatusLabel->clear();
-        m_qrGenSaveBtn->setEnabled(false);
-        m_qrGenCopyBtn->setEnabled(false);
-        return;
-    }
-
-    static const qrcodegen::QrCode::Ecc eccTable[] = {
-        qrcodegen::QrCode::Ecc::LOW,
-        qrcodegen::QrCode::Ecc::MEDIUM,
-        qrcodegen::QrCode::Ecc::QUARTILE,
-        qrcodegen::QrCode::Ecc::HIGH,
-    };
-    int eccIndex = m_qrGenEccCombo->currentData().toInt();
-    qrcodegen::QrCode::Ecc ecc = eccTable[qBound(0, eccIndex, 3)];
-
-    try {
-        QByteArray utf8 = text.toUtf8();
-        qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(utf8.constData(), ecc);
-
-        int scale = m_qrGenScaleSpin->value();
-        int border = 4;
-        int modules = qr.getSize();
-        int imgSize = (modules + border * 2) * scale;
-
-        QImage img(imgSize, imgSize, QImage::Format_RGB32);
-        img.fill(Qt::white);
-        QPainter painter(&img);
-        painter.fillRect(0, 0, imgSize, imgSize, Qt::white);
-        for (int y = 0; y < modules; ++y) {
-            for (int x = 0; x < modules; ++x) {
-                if (qr.getModule(x, y))
-                    painter.fillRect((x + border) * scale, (y + border) * scale, scale, scale, Qt::black);
-            }
-        }
-        painter.end();
-
-        m_qrGenPixmap = QPixmap::fromImage(img);
-        m_qrGenPreview->setPixmap(m_qrGenPixmap.scaled(m_qrGenPreview->size(),
-            Qt::KeepAspectRatio, Qt::FastTransformation));
-        m_qrGenStatusLabel->setText(QStringLiteral("版本 %1 | %2×%3 模块 | 输出 %4×%4 px")
-            .arg(qr.getVersion()).arg(modules).arg(modules).arg(imgSize));
-        m_qrGenSaveBtn->setEnabled(true);
-        m_qrGenCopyBtn->setEnabled(true);
-    } catch (const std::length_error &) {
-        m_qrGenPixmap = QPixmap();
-        m_qrGenPreview->setPixmap(QPixmap());
-        m_qrGenPreview->setText(QStringLiteral("内容过长，无法生成"));
-        m_qrGenStatusLabel->setText(QStringLiteral("请缩短内容或降低纠错等级"));
-        m_qrGenSaveBtn->setEnabled(false);
-        m_qrGenCopyBtn->setEnabled(false);
-    }
-}
-
-void MainWindow::onQrSaveImage()
-{
-    if (m_qrGenPixmap.isNull())
-        return;
-    QString filePath = QFileDialog::getSaveFileName(this,
-        QStringLiteral("保存二维码"), QStringLiteral("qrcode.png"),
-        QStringLiteral("PNG 图片 (*.png)"));
-    if (filePath.isEmpty())
-        return;
-    if (!m_qrGenPixmap.save(filePath, "PNG")) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-            QStringLiteral("保存失败：%1").arg(filePath));
-    }
-}
-
-void MainWindow::onQrCopyImage()
-{
-    if (m_qrGenPixmap.isNull())
-        return;
-    QApplication::clipboard()->setPixmap(m_qrGenPixmap);
-    QString original = m_qrGenCopyBtn->text();
-    m_qrGenCopyBtn->setText(QStringLiteral("已复制"));
-    m_qrGenCopyBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_qrGenCopyBtn->setText(original);
-        m_qrGenCopyBtn->setEnabled(true);
-    });
-}
-
-void MainWindow::onQrSelectImage()
-{
-    QString filePath = QFileDialog::getOpenFileName(this,
-        QStringLiteral("选择图片文件"), QString(),
-        QStringLiteral("图片文件 (*.jpg *.jpeg *.png *.webp *.bmp *.gif *.ico *.tiff *.tif)"));
-    if (filePath.isEmpty())
-        return;
-    QImage image(filePath);
-    if (image.isNull()) {
-        QMessageBox::warning(this, QStringLiteral("错误"),
-            QStringLiteral("无法加载图片：%1").arg(filePath));
-        return;
-    }
-    m_qrDecFilePath->setText(QDir::toNativeSeparators(filePath));
-    processQrDecodeImage(image, QFileInfo(filePath).fileName());
-}
-
-void MainWindow::onQrScreenCapture()
-{
-    m_screenshotTool->startScreenshotForQr();
-}
-
-void MainWindow::processQrDecodeImage(const QImage &image, const QString &sourceDesc)
-{
-    m_qrDecPreview->setPixmap(QPixmap::fromImage(image).scaled(200, 200,
-        Qt::KeepAspectRatio, Qt::SmoothTransformation));
-
-    QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
-    int w = gray.width();
-    int h = gray.height();
-
-    QStringList results;
-    quirc *q = quirc_new();
-    if (q && quirc_resize(q, w, h) == 0) {
-        int qw, qh;
-        uint8_t *buf = quirc_begin(q, &qw, &qh);
-        for (int y = 0; y < h; ++y)
-            memcpy(buf + y * qw, gray.constScanLine(y), w);
-        quirc_end(q);
-
-        int count = quirc_count(q);
-        for (int i = 0; i < count; ++i) {
-            quirc_code code;
-            quirc_data data;
-            quirc_extract(q, i, &code);
-            if (quirc_decode(&code, &data) == QUIRC_SUCCESS) {
-                results << QString::fromUtf8(
-                    reinterpret_cast<const char *>(data.payload), data.payload_len);
-            }
-        }
-    }
-    if (q)
-        quirc_destroy(q);
-
-    if (results.isEmpty()) {
-        m_qrDecOutput->setPlainText(QStringLiteral("未识别到二维码"));
-        m_qrDecInfoLabel->setText(QStringLiteral("来源: %1").arg(sourceDesc));
-        m_qrDecCopyBtn->setEnabled(false);
-        m_qrDecOpenBtn->setEnabled(false);
-        return;
-    }
-
-    QStringList numbered;
-    for (int i = 0; i < results.size(); ++i) {
-        if (results.size() > 1)
-            numbered << QStringLiteral("[%1] %2").arg(i + 1).arg(results[i]);
-        else
-            numbered << results[i];
-    }
-    m_qrDecOutput->setPlainText(numbered.join(QStringLiteral("\n\n")));
-    m_qrDecInfoLabel->setText(QStringLiteral("来源: %1 | 识别到 %2 个二维码")
-        .arg(sourceDesc).arg(results.size()));
-    m_qrDecCopyBtn->setEnabled(true);
-
-    bool isUrl = results.first().startsWith(QStringLiteral("http://"), Qt::CaseInsensitive)
-              || results.first().startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
-    m_qrDecOpenBtn->setEnabled(isUrl);
-}
-
-void MainWindow::onQrCopyResult()
-{
-    QString text = m_qrDecOutput->toPlainText();
-    if (text.isEmpty() || text == QStringLiteral("未识别到二维码"))
-        return;
-    QApplication::clipboard()->setText(text);
-    QString original = m_qrDecCopyBtn->text();
-    m_qrDecCopyBtn->setText(QStringLiteral("已复制"));
-    m_qrDecCopyBtn->setEnabled(false);
-    QTimer::singleShot(1500, this, [this, original]() {
-        m_qrDecCopyBtn->setText(original);
-        m_qrDecCopyBtn->setEnabled(true);
-    });
-}
-
-void MainWindow::onQrOpenLink()
-{
-    QString text = m_qrDecOutput->toPlainText();
-    if (text.startsWith(QStringLiteral("[1] ")))
-        text = text.mid(4).section(QStringLiteral("\n"), 0, 0);
-    QUrl url(text.trimmed());
-    if (url.isValid())
-        QDesktopServices::openUrl(url);
 }
 
 // ==================== Cert (HTTPS证书) Page ====================

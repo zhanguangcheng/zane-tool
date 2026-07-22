@@ -37,6 +37,7 @@ class TimestampTool;
 class CronTool;
 class JwtTool;
 class RandomStringTool;
+class QrCodeTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -55,14 +56,6 @@ private slots:
     void onDownloadStart();
     void onDownloadCancel();
     void onDownloadProcessOutput();
-
-    void onQrGenerate();
-    void onQrSaveImage();
-    void onQrCopyImage();
-    void onQrSelectImage();
-    void onQrScreenCapture();
-    void onQrCopyResult();
-    void onQrOpenLink();
 
     void onIpWanQuery();
     void onIpCopyLan();
@@ -87,7 +80,6 @@ private:
     void setupUi();
     void setupSidebar();
     QWidget *createDownloadPage();
-    QWidget *createQrCodePage();
     QWidget *createCertPage();
     QWidget *createIpQueryPage();
     QWidget *createCalcPage();
@@ -96,7 +88,6 @@ private:
 
     void setDownloadUiEnabled(bool enabled);
 
-    void processQrDecodeImage(const QImage &image, const QString &sourceDesc);
     void refreshCertCaStatus();
 
     QString m_ffmpegPath;
@@ -116,6 +107,7 @@ private:
     CronTool *m_cronTool;
     JwtTool *m_jwtTool;
     RandomStringTool *m_randomStringTool;
+    QrCodeTool *m_qrCodeTool;
 
     QLabel *m_aboutLabel;
 
@@ -153,26 +145,6 @@ private:
     QString m_aria2Path;
     QString m_downloadTempFile;
     QString m_downloadOutputDirPath;
-
-    // ---- QR code tab widgets ----
-    QTextEdit *m_qrGenInput;
-    QComboBox *m_qrGenEccCombo;
-    QSpinBox *m_qrGenScaleSpin;
-    QLabel *m_qrGenPreview;
-    QLabel *m_qrGenStatusLabel;
-    QPushButton *m_qrGenSaveBtn;
-    QPushButton *m_qrGenCopyBtn;
-    QPixmap m_qrGenPixmap;
-
-    QLineEdit *m_qrDecFilePath;
-    QPushButton *m_qrDecSelectBtn;
-    QPushButton *m_qrDecScreenBtn;
-    QLabel *m_qrDecDropZone;
-    QLabel *m_qrDecPreview;
-    QTextEdit *m_qrDecOutput;
-    QLabel *m_qrDecInfoLabel;
-    QPushButton *m_qrDecCopyBtn;
-    QPushButton *m_qrDecOpenBtn;
 
     // ---- Cert (HTTPS证书) tab widgets ----
     QLabel *m_certCaStatusLabel;
