@@ -50,14 +50,6 @@ public:
     explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
 
 private slots:
-    void onDownloadAddFile();
-    void onDownloadPaste();
-    void onDownloadClear();
-    void onDownloadOutputBrowse();
-    void onDownloadStart();
-    void onDownloadCancel();
-    void onDownloadProcessOutput();
-
     void onIpWanQuery();
     void onIpCopyLan();
     void onIpCopyWan();
@@ -72,13 +64,10 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
-    QWidget *createDownloadPage();
     QWidget *createIpQueryPage();
     QWidget *createCalcPage();
 
     void showAbout();
-
-    void setDownloadUiEnabled(bool enabled);
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;
@@ -99,43 +88,15 @@ private:
     RandomStringTool *m_randomStringTool;
     QrCodeTool *m_qrCodeTool;
     CertTool *m_certTool;
+    class DownloadTool *m_downloadTool;
 
     QLabel *m_aboutLabel;
-
-    // ---- Download tab widgets ----
-    QTextEdit *m_downloadUrlInput;
-    QPushButton *m_downloadAddFileBtn;
-    QPushButton *m_downloadPasteBtn;
-    QPushButton *m_downloadClearBtn;
-    QSpinBox *m_downloadMaxConcurrent;
-    QSpinBox *m_downloadMaxConnections;
-    QSpinBox *m_downloadSpeedLimit;
-    QCheckBox *m_downloadAllowOverwrite;
-    QLineEdit *m_downloadOutputDir;
-    QPushButton *m_downloadOutputBrowse;
-    QTableWidget *m_downloadProgressTable;
-    QProgressBar *m_downloadProgressBar;
-    QLabel *m_downloadStatusLabel;
-    QPushButton *m_downloadStartBtn;
-    QPushButton *m_downloadCancelBtn;
 
     // ---- Task queues ----
 
     // ---- Statistics ----
 
-    QProcess *m_downloadProcess;
-    struct DownloadEntry { QString url; QString filename; int row; bool completed; bool failed; };
-    QList<DownloadEntry> m_downloadEntries;
-    QList<QProgressBar *> m_downloadBars;
-    QMap<QString, int> m_gidToIndex;
-    QString m_downloadPendingUrl;
-    int m_downloadCompleted;
-    int m_downloadFailed;
-    bool m_downloadCancelling;
-    QString m_downloadStdoutBuffer;
     QString m_aria2Path;
-    QString m_downloadTempFile;
-    QString m_downloadOutputDirPath;
 
     // ---- IP Query tab widgets ----
     QTextEdit *m_ipLanEdit;

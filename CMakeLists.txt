@@ -45,6 +45,7 @@ set(SOURCES
     src/randomstringtool.cpp
     src/qrcodetool.cpp
     src/certtool.cpp
+    src/downloadtool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -84,6 +85,7 @@ set(HEADERS
     src/randomstringtool.h
     src/qrcodetool.h
     src/certtool.h
+    src/downloadtool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h
