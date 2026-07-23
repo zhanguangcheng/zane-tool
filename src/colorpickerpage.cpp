@@ -1,6 +1,8 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QTimer>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -15,6 +17,8 @@ ColorPickerPage::ColorPickerPage(QWidget *parent)
     : QWidget(parent)
     , m_pickedColor(Qt::white)
     , m_colorPicker(new ColorPicker(nullptr))
+    , m_updatingFromRgb(false)
+    , m_updatingFromHex(false)
 {
     setupUi();
 
@@ -116,6 +120,109 @@ void ColorPickerPage::setupUi()
     groupLayout->addStretch();
 
     mainLayout->addWidget(group);
+
+    QGroupBox *convGroup = new QGroupBox(QStringLiteral("颜色转换"), this);
+    QVBoxLayout *convLayout = new QVBoxLayout(convGroup);
+    convLayout->setSpacing(10);
+
+    QHBoxLayout *rgbRow = new QHBoxLayout();
+    QLabel *convRLabel = new QLabel(QStringLiteral("R:"), convGroup);
+    convRLabel->setStyleSheet(QStringLiteral("color: #dc3545; font-weight: bold;"));
+    m_convRSpin = new QSpinBox(convGroup);
+    m_convRSpin->setRange(0, 255);
+    m_convRSpin->setValue(255);
+    m_convRSpin->setFixedWidth(64);
+
+    QLabel *convGLabel = new QLabel(QStringLiteral("G:"), convGroup);
+    convGLabel->setStyleSheet(QStringLiteral("color: #198754; font-weight: bold;"));
+    m_convGSpin = new QSpinBox(convGroup);
+    m_convGSpin->setRange(0, 255);
+    m_convGSpin->setValue(255);
+    m_convGSpin->setFixedWidth(64);
+
+    QLabel *convBLabel = new QLabel(QStringLiteral("B:"), convGroup);
+    convBLabel->setStyleSheet(QStringLiteral("color: #0d6efd; font-weight: bold;"));
+    m_convBSpin = new QSpinBox(convGroup);
+    m_convBSpin->setRange(0, 255);
+    m_convBSpin->setValue(255);
+    m_convBSpin->setFixedWidth(64);
+
+    QLabel *rgbArrow = new QLabel(QStringLiteral("  \u2192  "), convGroup);
+    rgbArrow->setStyleSheet(QStringLiteral("font-size: 16px; color: #6c757d;"));
+
+    m_convHexResult = new QLabel(QStringLiteral("#FFFFFF"), convGroup);
+    QFont monoFont(QStringLiteral("Consolas"), 11);
+    m_convHexResult->setFont(monoFont);
+    m_convHexResult->setStyleSheet(QStringLiteral("color: #212529; background: #f1f3f5; padding: 2px 8px; border-radius: 3px;"));
+
+    m_convCopyHexBtn = new QPushButton(QStringLiteral("复制 HEX"), convGroup);
+    m_convCopyHexBtn->setFixedWidth(110);
+
+    rgbRow->addWidget(convRLabel);
+    rgbRow->addWidget(m_convRSpin);
+    rgbRow->addSpacing(6);
+    rgbRow->addWidget(convGLabel);
+    rgbRow->addWidget(m_convGSpin);
+    rgbRow->addSpacing(6);
+    rgbRow->addWidget(convBLabel);
+    rgbRow->addWidget(m_convBSpin);
+    rgbRow->addSpacing(8);
+    rgbRow->addWidget(rgbArrow);
+    rgbRow->addWidget(m_convHexResult);
+    rgbRow->addWidget(m_convCopyHexBtn);
+    rgbRow->addStretch();
+
+    QHBoxLayout *hexRow = new QHBoxLayout();
+    QLabel *hexPrefix = new QLabel(QStringLiteral("#"), convGroup);
+    hexPrefix->setStyleSheet(QStringLiteral("font-size: 14px; color: #6c757d;"));
+    m_convHexInput = new QLineEdit(convGroup);
+    m_convHexInput->setPlaceholderText(QStringLiteral("输入 HEX 值"));
+    m_convHexInput->setFixedWidth(140);
+    m_convHexInput->setFont(monoFont);
+
+    QLabel *hexArrow = new QLabel(QStringLiteral("  \u2192  "), convGroup);
+    hexArrow->setStyleSheet(QStringLiteral("font-size: 16px; color: #6c757d;"));
+
+    m_convRgbResult = new QLabel(QStringLiteral("rgb(255, 255, 255)"), convGroup);
+    m_convRgbResult->setFont(monoFont);
+    m_convRgbResult->setStyleSheet(QStringLiteral("color: #212529; background: #f1f3f5; padding: 2px 8px; border-radius: 3px;"));
+
+    m_convCopyRgbBtn = new QPushButton(QStringLiteral("复制 RGB"), convGroup);
+    m_convCopyRgbBtn->setFixedWidth(110);
+
+    hexRow->addWidget(hexPrefix);
+    hexRow->addWidget(m_convHexInput);
+    hexRow->addSpacing(8);
+    hexRow->addWidget(hexArrow);
+    hexRow->addWidget(m_convRgbResult);
+    hexRow->addWidget(m_convCopyRgbBtn);
+    hexRow->addStretch();
+
+    m_convColorPreview = new QLabel(convGroup);
+    m_convColorPreview->setFixedSize(120, 36);
+    m_convColorPreview->setAlignment(Qt::AlignCenter);
+    m_convColorPreview->setStyleSheet(QStringLiteral(
+        "background-color: #FFFFFF; border: 2px solid #ced4da; border-radius: 6px;"
+        "color: #212529;"));
+
+    QHBoxLayout *previewRow = new QHBoxLayout();
+    previewRow->addStretch();
+    previewRow->addWidget(m_convColorPreview);
+    previewRow->addStretch();
+
+    convLayout->addLayout(rgbRow);
+    convLayout->addLayout(hexRow);
+    convLayout->addLayout(previewRow);
+
+    mainLayout->addWidget(convGroup);
+
+    connect(m_convRSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerPage::onConvRgbChanged);
+    connect(m_convGSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerPage::onConvRgbChanged);
+    connect(m_convBSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, &ColorPickerPage::onConvRgbChanged);
+    connect(m_convHexInput, &QLineEdit::textEdited, this, &ColorPickerPage::onConvHexChanged);
+    connect(m_convCopyHexBtn, &QPushButton::clicked, this, &ColorPickerPage::onCopyConvHex);
+    connect(m_convCopyRgbBtn, &QPushButton::clicked, this, &ColorPickerPage::onCopyConvRgb);
+
     mainLayout->addStretch();
 }
 
@@ -239,4 +346,112 @@ void ColorPickerPage::updateColorHistory()
         m_historyLayout->addWidget(btn);
     }
     m_historyLayout->addStretch();
+}
+
+void ColorPickerPage::onConvRgbChanged()
+{
+    if (m_updatingFromHex) return;
+    m_updatingFromRgb = true;
+
+    int r = m_convRSpin->value();
+    int g = m_convGSpin->value();
+    int b = m_convBSpin->value();
+
+    QString hex = QStringLiteral("#%1%2%3")
+        .arg(r, 2, 16, QLatin1Char('0'))
+        .arg(g, 2, 16, QLatin1Char('0'))
+        .arg(b, 2, 16, QLatin1Char('0'))
+        .toUpper();
+
+    m_convHexResult->setText(hex);
+    m_convHexInput->setText(hex.mid(1));
+    m_convRgbResult->setText(QStringLiteral("rgb(%1, %2, %3)").arg(r).arg(g).arg(b));
+
+    m_convColorPreview->setStyleSheet(QStringLiteral(
+        "background-color: %1; border: 2px solid #adb5bd; border-radius: 6px;"
+        "color: %2;"
+    ).arg(hex).arg((r + g + b) / 3 > 128 ? QStringLiteral("#212529") : QStringLiteral("#f8f9fa")));
+
+    m_updatingFromRgb = false;
+}
+
+void ColorPickerPage::onConvHexChanged()
+{
+    if (m_updatingFromRgb) return;
+    QString text = m_convHexInput->text().simplified();
+    if (text.startsWith(QLatin1Char('#')))
+        text = text.mid(1);
+
+    if (text.isEmpty()) {
+        m_convHexResult->setText(QStringLiteral("-"));
+        m_convRgbResult->setText(QStringLiteral("-"));
+        m_convColorPreview->setStyleSheet(QStringLiteral(
+            "background-color: #e9ecef; border: 2px solid #ced4da; border-radius: 6px;"
+            "color: #212529;"));
+        return;
+    }
+
+    int len = text.length();
+    QString hex;
+    if (len == 3) {
+        hex = QStringLiteral("#%1%1%2%2%3%3")
+            .arg(text[0]).arg(text[1]).arg(text[2]);
+    } else if (len == 6) {
+        hex = QStringLiteral("#") + text;
+    } else {
+        return;
+    }
+
+    bool ok;
+    int rgb = hex.mid(1).toInt(&ok, 16);
+    if (!ok) return;
+
+    int r = (rgb >> 16) & 0xFF;
+    int g = (rgb >> 8) & 0xFF;
+    int b = rgb & 0xFF;
+
+    m_updatingFromHex = true;
+
+    m_convRSpin->setValue(r);
+    m_convGSpin->setValue(g);
+    m_convBSpin->setValue(b);
+
+    hex = hex.toUpper();
+    m_convHexResult->setText(hex);
+    m_convRgbResult->setText(QStringLiteral("rgb(%1, %2, %3)").arg(r).arg(g).arg(b));
+
+    m_convColorPreview->setStyleSheet(QStringLiteral(
+        "background-color: %1; border: 2px solid #adb5bd; border-radius: 6px;"
+        "color: %2;"
+    ).arg(hex).arg((r + g + b) / 3 > 128 ? QStringLiteral("#212529") : QStringLiteral("#f8f9fa")));
+
+    m_updatingFromHex = false;
+}
+
+void ColorPickerPage::onCopyConvHex()
+{
+    QString text = m_convHexResult->text();
+    if (text == QStringLiteral("-")) return;
+    QApplication::clipboard()->setText(text);
+    QString original = m_convCopyHexBtn->text();
+    m_convCopyHexBtn->setText(QStringLiteral("已复制"));
+    m_convCopyHexBtn->setEnabled(false);
+    QTimer::singleShot(1500, this, [this, original]() {
+        m_convCopyHexBtn->setText(original);
+        m_convCopyHexBtn->setEnabled(true);
+    });
+}
+
+void ColorPickerPage::onCopyConvRgb()
+{
+    QString text = m_convRgbResult->text();
+    if (text == QStringLiteral("-")) return;
+    QApplication::clipboard()->setText(text);
+    QString original = m_convCopyRgbBtn->text();
+    m_convCopyRgbBtn->setText(QStringLiteral("已复制"));
+    m_convCopyRgbBtn->setEnabled(false);
+    QTimer::singleShot(1500, this, [this, original]() {
+        m_convCopyRgbBtn->setText(original);
+        m_convCopyRgbBtn->setEnabled(true);
+    });
 }

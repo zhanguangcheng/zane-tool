@@ -5,6 +5,8 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QHBoxLayout>
+#include <QSpinBox>
+#include <QLineEdit>
 #include <QList>
 #include <QColor>
 
@@ -25,6 +27,10 @@ private slots:
     void onCopyHex();
     void onCopyRgb();
     void onHistoryColorClicked(int index);
+    void onConvRgbChanged();
+    void onConvHexChanged();
+    void onCopyConvHex();
+    void onCopyConvRgb();
 
 private:
     void setupUi();
@@ -48,6 +54,19 @@ private:
 
     QColor m_pickedColor;
     QList<QColor> m_colorHistory;
+
+    QSpinBox *m_convRSpin;
+    QSpinBox *m_convGSpin;
+    QSpinBox *m_convBSpin;
+    QLineEdit *m_convHexInput;
+    QLabel *m_convHexResult;
+    QLabel *m_convRgbResult;
+    QLabel *m_convColorPreview;
+    QPushButton *m_convCopyHexBtn;
+    QPushButton *m_convCopyRgbBtn;
+
+    bool m_updatingFromRgb;
+    bool m_updatingFromHex;
 };
 
 #endif // COLORPICKERPAGE_H
