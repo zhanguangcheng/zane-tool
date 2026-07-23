@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Zane Tool"));
-    app.setApplicationVersion(QStringLiteral("0.1.1"));
+    app.setApplicationVersion(QStringLiteral("1.0.0"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(

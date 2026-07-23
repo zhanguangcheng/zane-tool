@@ -13,12 +13,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Zane"
             VALUE "FileDescription", "Zane Tool"
-            VALUE "FileVersion", "0.1.1.0"
+            VALUE "FileVersion", "1.0.0.0"
             VALUE "InternalName", "ZaneTool"
             VALUE "LegalCopyright", "Internal Tool"
             VALUE "OriginalFilename", "ZaneTool.exe"
             VALUE "ProductName", "Zane Tool"
-            VALUE "ProductVersion", "0.1.1.0"
+            VALUE "ProductVersion", "1.0.0.0"
         END
     END
     BLOCK "VarFileInfo"

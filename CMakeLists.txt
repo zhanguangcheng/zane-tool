@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 0.1.1 LANGUAGES C CXX)
+project(ZaneTool VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
