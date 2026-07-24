@@ -34,6 +34,7 @@
 #include "qrcodetool.h"
 #include "certtool.h"
 #include "downloadtool.h"
+#include "jsontool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -73,6 +74,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_timestampTool(new TimestampTool(this))
     , m_cronTool(new CronTool(this))
     , m_jwtTool(new JwtTool(this))
+    , m_jsonTool(new JsonTool(this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
     , m_certTool(new CertTool(this, mkcertPath, this))
@@ -128,6 +130,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_timestampTool->createPage());
     m_stackedWidget->addWidget(m_cronTool->createPage());
     m_stackedWidget->addWidget(m_jwtTool->createPage());
+    m_stackedWidget->addWidget(m_jsonTool->createPage());
     m_downloadTool = new DownloadTool(m_aria2Path, this);
     m_stackedWidget->addWidget(m_downloadTool);
     m_stackedWidget->addWidget(m_randomStringTool->createPage());
@@ -176,20 +179,21 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("截图贴图"), 4);
     addTool(QStringLiteral("窗口透明"), 5);
     addTool(QStringLiteral("秒表计时"), 6);
-    addTool(QStringLiteral("计算器"), 16);
+    addTool(QStringLiteral("计算器"), 17);
 
     addCategory(QStringLiteral("\U0001F527 开发工具"));
     addTool(QStringLiteral("图片转Base64"), 7);
     addTool(QStringLiteral("时间戳转换"), 8);
     addTool(QStringLiteral("Cron 解析"), 9);
     addTool(QStringLiteral("JWT 解析"), 10);
-    addTool(QStringLiteral("随机字符串"), 12);
-    addTool(QStringLiteral("二维码工具"), 13);
-    addTool(QStringLiteral("HTTPS证书"), 14);
+    addTool(QStringLiteral("JSON 格式化"), 11);
+    addTool(QStringLiteral("随机字符串"), 13);
+    addTool(QStringLiteral("二维码工具"), 14);
+    addTool(QStringLiteral("HTTPS证书"), 15);
 
     addCategory(QStringLiteral("\U0001F310 网络工具"));
-    addTool(QStringLiteral("文件批量下载"), 11);
-    addTool(QStringLiteral("本机IP查询"), 15);
+    addTool(QStringLiteral("文件批量下载"), 12);
+    addTool(QStringLiteral("本机IP查询"), 16);
 
     connect(m_sidebar, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0) return;

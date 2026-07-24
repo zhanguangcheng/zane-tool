@@ -38,6 +38,7 @@ class JwtTool;
 class RandomStringTool;
 class QrCodeTool;
 class CertTool;
+class JsonTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -81,6 +82,7 @@ private:
     RandomStringTool *m_randomStringTool;
     QrCodeTool *m_qrCodeTool;
     CertTool *m_certTool;
+    JsonTool *m_jsonTool;
     class DownloadTool *m_downloadTool;
 
     QLabel *m_aboutLabel;
