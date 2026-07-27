@@ -29,7 +29,7 @@
 #include "base64tool.h"
 #include "timestamptool.h"
 #include "crontool.h"
-#include "jwttool.h"
+#include "codectool.h"
 #include "randomstringtool.h"
 #include "qrcodetool.h"
 #include "certtool.h"
@@ -73,7 +73,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_base64Tool(new Base64Tool(this))
     , m_timestampTool(new TimestampTool(this))
     , m_cronTool(new CronTool(this))
-    , m_jwtTool(new JwtTool(this))
+    , m_codecTool(new CodecTool(this))
     , m_jsonTool(new JsonTool(this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
@@ -129,7 +129,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_base64Tool->createPage());
     m_stackedWidget->addWidget(m_timestampTool->createPage());
     m_stackedWidget->addWidget(m_cronTool->createPage());
-    m_stackedWidget->addWidget(m_jwtTool->createPage());
+    m_stackedWidget->addWidget(m_codecTool->createPage());
     m_stackedWidget->addWidget(m_jsonTool->createPage());
     m_downloadTool = new DownloadTool(m_aria2Path, this);
     m_stackedWidget->addWidget(m_downloadTool);
@@ -142,7 +142,7 @@ void MainWindow::setupUi()
 
     m_stackedWidget->setCurrentIndex(0);
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.0</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.1</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -182,11 +182,11 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("计算器"), 17);
 
     addCategory(QStringLiteral("\U0001F527 开发工具"));
+    addTool(QStringLiteral("编码解码"), 10);
+    addTool(QStringLiteral("JSON 格式化"), 11);
     addTool(QStringLiteral("图片转Base64"), 7);
     addTool(QStringLiteral("时间戳转换"), 8);
     addTool(QStringLiteral("Cron 解析"), 9);
-    addTool(QStringLiteral("JWT 解析"), 10);
-    addTool(QStringLiteral("JSON 格式化"), 11);
     addTool(QStringLiteral("随机字符串"), 13);
     addTool(QStringLiteral("二维码工具"), 14);
     addTool(QStringLiteral("HTTPS证书"), 15);
@@ -240,14 +240,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.0</h3>"
+        "<h3>Zane Tool v1.0.1</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"
         "<p><b>系统工具</b><br>"
         "屏幕取色 &middot; 截图贴图 &middot; 窗口透明 &middot; 秒表计时</p>"
         "<p><b>开发工具</b><br>"
-        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; JWT 解析 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书</p>"
+        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书</p>"
         "<p><b>网络工具</b><br>"
         "批量文件下载（aria2c）</p>"
         "<p><b>技术栈</b><br>"

@@ -34,7 +34,7 @@ class TimerTool;
 class Base64Tool;
 class TimestampTool;
 class CronTool;
-class JwtTool;
+class CodecTool;
 class RandomStringTool;
 class QrCodeTool;
 class CertTool;
@@ -78,7 +78,7 @@ private:
     Base64Tool *m_base64Tool;
     TimestampTool *m_timestampTool;
     CronTool *m_cronTool;
-    JwtTool *m_jwtTool;
+    CodecTool *m_codecTool;
     RandomStringTool *m_randomStringTool;
     QrCodeTool *m_qrCodeTool;
     CertTool *m_certTool;

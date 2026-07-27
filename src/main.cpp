@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Zane Tool"));
-    app.setApplicationVersion(QStringLiteral("1.0.0"));
+    app.setApplicationVersion(QStringLiteral("1.0.1"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(
@@ -147,6 +147,32 @@ int main(int argc, char *argv[])
         QCheckBox::indicator {
             width: 16px;
             height: 16px;
+        }
+        QPushButton[codec="true"] {
+            background-color: #ffffff;
+            color: #495057;
+            border: 1px solid #ced4da;
+            border-radius: 0px;
+            padding: 5px 14px;
+            font-size: 13px;
+            margin-left: -1px;
+        }
+        QPushButton[codec="true"]:checked {
+            background-color: #0d6efd;
+            color: #ffffff;
+            border-color: #0d6efd;
+        }
+        QPushButton[codec="true"]:hover:!checked {
+            background-color: #e9ecef;
+        }
+        QPushButton[codec="true"][first="true"] {
+            border-top-left-radius: 4px;
+            border-bottom-left-radius: 4px;
+            margin-left: 0px;
+        }
+        QPushButton[codec="true"][last="true"] {
+            border-top-right-radius: 4px;
+            border-bottom-right-radius: 4px;
         }
     )");
 

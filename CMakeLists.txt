@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 1.0.0 LANGUAGES C CXX)
+project(ZaneTool VERSION 1.0.1 LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -41,7 +41,7 @@ set(SOURCES
     src/base64tool.cpp
     src/timestamptool.cpp
     src/crontool.cpp
-    src/jwttool.cpp
+    src/codectool.cpp
     src/randomstringtool.cpp
     src/qrcodetool.cpp
     src/certtool.cpp
@@ -83,7 +83,7 @@ set(HEADERS
     src/base64tool.h
     src/timestamptool.h
     src/crontool.h
-    src/jwttool.h
+    src/codectool.h
     src/randomstringtool.h
     src/qrcodetool.h
     src/certtool.h
