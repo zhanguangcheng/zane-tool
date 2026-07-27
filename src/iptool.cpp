@@ -105,6 +105,11 @@ void IpTool::setupUi()
     mainLayout->addWidget(wanGroup);
     mainLayout->addStretch(1);
 
+    QTimer::singleShot(0, this, [this]() { refreshLanIps(); });
+}
+
+void IpTool::refreshLanIps()
+{
     QStringList lanIps;
     const QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
     for (const QNetworkInterface &iface : interfaces) {

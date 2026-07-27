@@ -59,6 +59,7 @@ protected:
 private:
     void setupUi();
     void setupSidebar();
+    void ensurePage(int index);
     QWidget *createCalcPage();
 
     void showAbout();
@@ -95,6 +96,8 @@ private:
 
     IpTool *m_ipTool;
     CalculatorPage *m_calcPage;
+
+    bool m_pageCreated[18] = {};
 };
 
 #endif // MAINWINDOW_H

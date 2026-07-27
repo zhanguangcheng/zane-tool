@@ -22,9 +22,16 @@ ImageTool::ImageTool(const QString &ffmpegPath, QWidget *parent)
     , m_sizeAfter(0)
     , m_successCount(0)
     , m_failedCount(0)
-    , m_ffmpeg(new FFmpegProcess(this))
+    , m_ffmpeg(nullptr)
 {
     setupUi();
+}
+
+void ImageTool::ensureFfmpeg()
+{
+    if (m_ffmpeg) return;
+
+    m_ffmpeg = new FFmpegProcess(this);
 
     connect(m_ffmpeg, &FFmpegProcess::finished, this, [this](bool success, int) {
         if (m_cancelling) return;
@@ -268,6 +275,7 @@ void ImageTool::onStart()
     }
 
     setImageUiEnabled(false);
+    ensureFfmpeg();
     processNextImage();
 }
 
@@ -383,7 +391,7 @@ void ImageTool::showBatchSummary()
 
 void ImageTool::closeEvent(QCloseEvent *event)
 {
-    if (m_ffmpeg->isRunning())
+    if (m_ffmpeg && m_ffmpeg->isRunning())
         m_ffmpeg->cancel();
     QWidget::closeEvent(event);
 }

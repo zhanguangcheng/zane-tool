@@ -21,6 +21,9 @@ public:
 
     QWidget *createPage();
 
+    void startTimer();
+    void stopTimer();
+
 private slots:
     void onCronInputChanged();
     void onCronPresetChanged(int index);

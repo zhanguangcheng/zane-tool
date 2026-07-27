@@ -38,6 +38,7 @@ private slots:
 
 private:
     void setupUi();
+    void ensureFfmpeg();
     void processNextVideo();
     void setVideoUiEnabled(bool enabled);
     void updateVideoInfoPreview();

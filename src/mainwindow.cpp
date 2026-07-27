@@ -115,34 +115,23 @@ void MainWindow::setupUi()
     setupSidebar();
 
     m_imageTool = new ImageTool(m_ffmpegPath, this);
-    m_videoTool = new VideoTool(m_ffmpegPath, this);
-    m_audioTool = new AudioTool(m_ffmpegPath, this);
-
     m_stackedWidget->addWidget(m_imageTool);
-    m_stackedWidget->addWidget(m_videoTool);
-    m_stackedWidget->addWidget(m_audioTool);
-    m_colorPickerPage = new ColorPickerPage(this);
-    m_stackedWidget->addWidget(m_colorPickerPage);
-    m_stackedWidget->addWidget(m_screenshotTool->createPage());
-    m_stackedWidget->addWidget(m_transparencyTool->createPage());
-    m_stackedWidget->addWidget(m_timerTool->createPage());
-    m_stackedWidget->addWidget(m_base64Tool->createPage());
-    m_stackedWidget->addWidget(m_timestampTool->createPage());
-    m_stackedWidget->addWidget(m_cronTool->createPage());
-    m_stackedWidget->addWidget(m_codecTool->createPage());
-    m_stackedWidget->addWidget(m_jsonTool->createPage());
-    m_downloadTool = new DownloadTool(m_aria2Path, this);
-    m_stackedWidget->addWidget(m_downloadTool);
-    m_stackedWidget->addWidget(m_randomStringTool->createPage());
-    m_stackedWidget->addWidget(m_qrCodeTool->createPage());
-    m_stackedWidget->addWidget(m_certTool->createPage());
-    m_ipTool = new IpTool(this);
-    m_stackedWidget->addWidget(m_ipTool);
-    m_stackedWidget->addWidget(createCalcPage());
+    m_pageCreated[0] = true;
+
+    for (int i = 1; i < 18; ++i)
+        m_stackedWidget->addWidget(new QWidget());
 
     m_stackedWidget->setCurrentIndex(0);
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.1</a>"), this);
+    connect(m_stackedWidget, &QStackedWidget::currentChanged, this, [this](int index) {
+        if (index == 8) m_timestampTool->startTimer();
+        else m_timestampTool->stopTimer();
+
+        if (index == 9) m_cronTool->startTimer();
+        else m_cronTool->stopTimer();
+    });
+
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.2</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -199,11 +188,90 @@ void MainWindow::setupSidebar()
         if (row < 0) return;
         QListWidgetItem *item = m_sidebar->item(row);
         int idx = item->data(Qt::UserRole).toInt();
-        if (idx >= 0)
+        if (idx >= 0) {
+            ensurePage(idx);
             m_stackedWidget->setCurrentIndex(idx);
+        }
     });
 
     m_sidebar->setCurrentRow(1);
+}
+
+void MainWindow::ensurePage(int index)
+{
+    if (index < 0 || index >= 18 || m_pageCreated[index])
+        return;
+
+    QWidget *page = nullptr;
+
+    switch (index) {
+    case 1:
+        m_videoTool = new VideoTool(m_ffmpegPath, this);
+        page = m_videoTool;
+        break;
+    case 2:
+        m_audioTool = new AudioTool(m_ffmpegPath, this);
+        page = m_audioTool;
+        break;
+    case 3:
+        m_colorPickerPage = new ColorPickerPage(this);
+        page = m_colorPickerPage;
+        break;
+    case 4:
+        page = m_screenshotTool->createPage();
+        break;
+    case 5:
+        page = m_transparencyTool->createPage();
+        break;
+    case 6:
+        page = m_timerTool->createPage();
+        break;
+    case 7:
+        page = m_base64Tool->createPage();
+        break;
+    case 8:
+        page = m_timestampTool->createPage();
+        break;
+    case 9:
+        page = m_cronTool->createPage();
+        break;
+    case 10:
+        page = m_codecTool->createPage();
+        break;
+    case 11:
+        page = m_jsonTool->createPage();
+        break;
+    case 12:
+        m_downloadTool = new DownloadTool(m_aria2Path, this);
+        page = m_downloadTool;
+        break;
+    case 13:
+        page = m_randomStringTool->createPage();
+        break;
+    case 14:
+        page = m_qrCodeTool->createPage();
+        break;
+    case 15:
+        page = m_certTool->createPage();
+        break;
+    case 16:
+        m_ipTool = new IpTool(this);
+        page = m_ipTool;
+        break;
+    case 17:
+        page = createCalcPage();
+        break;
+    default:
+        return;
+    }
+
+    if (page) {
+        QWidget *placeholder = m_stackedWidget->widget(index);
+        m_stackedWidget->removeWidget(placeholder);
+        delete placeholder;
+        m_stackedWidget->insertWidget(index, page);
+        m_pageCreated[index] = true;
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -240,7 +308,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.1</h3>"
+        "<h3>Zane Tool v1.0.2</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"

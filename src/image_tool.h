@@ -39,6 +39,7 @@ private slots:
 
 private:
     void setupUi();
+    void ensureFfmpeg();
     void processNextImage();
     void setImageUiEnabled(bool enabled);
     void updateImageResolutionPreview();

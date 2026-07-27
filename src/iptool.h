@@ -22,6 +22,7 @@ private slots:
 
 private:
     void setupUi();
+    void refreshLanIps();
 
     QTextEdit *m_ipLanEdit;
     QPushButton *m_ipCopyLanBtn;

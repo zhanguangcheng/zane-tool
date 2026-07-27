@@ -36,6 +36,7 @@ private slots:
 
 private:
     void setupUi();
+    void ensureFfmpeg();
     void processNextAudio();
     void setAudioUiEnabled(bool enabled);
     void updateAudioInfoPreview();

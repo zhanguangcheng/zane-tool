@@ -158,12 +158,23 @@ QWidget *TimestampTool::createPage()
     m_timestampTimer = new QTimer(this);
     connect(m_timestampTimer, &QTimer::timeout,
             this, &TimestampTool::onTimestampUpdate);
-    m_timestampTimer->start(200);
 
     onTimestampUpdate();
     onDatetimeInputChanged();
 
     return page;
+}
+
+void TimestampTool::startTimer()
+{
+    if (m_timestampTimer && !m_timestampTimer->isActive())
+        m_timestampTimer->start(200);
+}
+
+void TimestampTool::stopTimer()
+{
+    if (m_timestampTimer)
+        m_timestampTimer->stop();
 }
 
 void TimestampTool::onTimestampUpdate()

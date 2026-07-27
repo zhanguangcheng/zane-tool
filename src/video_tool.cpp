@@ -21,9 +21,16 @@ VideoTool::VideoTool(const QString &ffmpegPath, QWidget *parent)
     , m_sizeAfter(0)
     , m_successCount(0)
     , m_failedCount(0)
-    , m_ffmpeg(new FFmpegProcess(this))
+    , m_ffmpeg(nullptr)
 {
     setupUi();
+}
+
+void VideoTool::ensureFfmpeg()
+{
+    if (m_ffmpeg) return;
+
+    m_ffmpeg = new FFmpegProcess(this);
 
     connect(m_ffmpeg, &FFmpegProcess::finished, this, [this](bool success, int) {
         if (m_cancelling) return;
@@ -268,6 +275,7 @@ void VideoTool::onStart()
     }
 
     setVideoUiEnabled(false);
+    ensureFfmpeg();
     processNextVideo();
 }
 
@@ -383,7 +391,7 @@ void VideoTool::showBatchSummary()
 
 void VideoTool::closeEvent(QCloseEvent *event)
 {
-    if (m_ffmpeg->isRunning())
+    if (m_ffmpeg && m_ffmpeg->isRunning())
         m_ffmpeg->cancel();
     QWidget::closeEvent(event);
 }

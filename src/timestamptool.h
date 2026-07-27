@@ -18,6 +18,9 @@ public:
 
     QWidget *createPage();
 
+    void startTimer();
+    void stopTimer();
+
 private slots:
     void onTimestampUpdate();
     void onTimestampNowSecCopy();

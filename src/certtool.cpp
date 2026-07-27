@@ -168,37 +168,41 @@ QWidget *CertTool::createPage()
     mainLayout->addWidget(genGroup);
     mainLayout->addWidget(logGroup, 1);
 
-    refreshCertCaStatus();
+    QTimer::singleShot(0, this, [this]() { refreshCertCaStatus(); });
 
     return page;
 }
 
 void CertTool::refreshCertCaStatus()
 {
-    QProcess proc;
-    proc.start(m_mkcertPath, {QStringLiteral("-CAROOT")});
-    if (!proc.waitForFinished(5000)) {
-        proc.kill();
-        proc.waitForFinished(1000);
-        m_certCaStatusLabel->setText(QStringLiteral("状态: 检测失败"));
-        return;
-    }
+    QProcess *proc = new QProcess(this);
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+        proc->deleteLater();
 
-    m_certCarootPath = QString::fromUtf8(proc.readAllStandardOutput()).trimmed();
-    m_certCarootLabel->setText(m_certCarootPath.isEmpty() ? QStringLiteral("-") : m_certCarootPath);
-    m_certCarootLabel->setToolTip(m_certCarootPath);
-    m_certOpenCarootBtn->setEnabled(!m_certCarootPath.isEmpty());
+        if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+            m_certCaStatusLabel->setText(QStringLiteral("状态: 检测失败"));
+            return;
+        }
 
-    bool caExists = !m_certCarootPath.isEmpty()
-        && QFileInfo::exists(m_certCarootPath + QStringLiteral("/rootCA.pem"));
-    if (caExists) {
-        m_certCaStatusLabel->setText(QStringLiteral(
-            "状态: <span style='color:#198754;font-weight:bold;'>CA 已生成</span>"));
-    } else {
-        m_certCaStatusLabel->setText(QStringLiteral(
-            "状态: <span style='color:#dc3545;font-weight:bold;'>CA 未生成</span>"
-            "（点击「安装到系统信任」创建并信任）"));
-    }
+        m_certCarootPath = QString::fromUtf8(proc->readAllStandardOutput()).trimmed();
+        m_certCarootLabel->setText(m_certCarootPath.isEmpty() ? QStringLiteral("-") : m_certCarootPath);
+        m_certCarootLabel->setToolTip(m_certCarootPath);
+        m_certOpenCarootBtn->setEnabled(!m_certCarootPath.isEmpty());
+
+        bool caExists = !m_certCarootPath.isEmpty()
+            && QFileInfo::exists(m_certCarootPath + QStringLiteral("/rootCA.pem"));
+        if (caExists) {
+            m_certCaStatusLabel->setText(QStringLiteral(
+                "状态: <span style='color:#198754;font-weight:bold;'>CA 已生成</span>"));
+        } else {
+            m_certCaStatusLabel->setText(QStringLiteral(
+                "状态: <span style='color:#dc3545;font-weight:bold;'>CA 未生成</span>"
+                "（点击「安装到系统信任」创建并信任）"));
+        }
+    });
+
+    proc->start(m_mkcertPath, {QStringLiteral("-CAROOT")});
 }
 
 void CertTool::onCertInstallCa()

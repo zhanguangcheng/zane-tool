@@ -163,9 +163,20 @@ QWidget *CronTool::createPage()
 
     m_cronTimer = new QTimer(this);
     connect(m_cronTimer, &QTimer::timeout, this, &CronTool::onCronUpdateTimes);
-    m_cronTimer->start(30000);
 
     return page;
+}
+
+void CronTool::startTimer()
+{
+    if (m_cronTimer && !m_cronTimer->isActive())
+        m_cronTimer->start(30000);
+}
+
+void CronTool::stopTimer()
+{
+    if (m_cronTimer)
+        m_cronTimer->stop();
 }
 
 // ==================== Cron helpers ====================
