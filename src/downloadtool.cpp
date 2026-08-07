@@ -17,6 +17,46 @@
 #include "downloadtool.h"
 #include "utils.h"
 
+namespace {
+
+qint64 parseAria2Size(const QString &text)
+{
+    static const QRegularExpression re(
+        QStringLiteral("^([\\d.]+)\\s*(B|KiB|MiB|GiB|TiB|KB|MB|GB|TB|K|M|G)?$"),
+        QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatch m = re.match(text.trimmed());
+    if (!m.hasMatch()) return -1;
+
+    bool ok = false;
+    double value = m.captured(1).toDouble(&ok);
+    if (!ok) return -1;
+
+    QString unit = m.captured(2).toUpper();
+    qint64 multiplier = 1;
+    if (unit == QStringLiteral("K") || unit == QStringLiteral("KIB") || unit == QStringLiteral("KB"))
+        multiplier = 1024;
+    else if (unit == QStringLiteral("M") || unit == QStringLiteral("MIB") || unit == QStringLiteral("MB"))
+        multiplier = 1024 * 1024;
+    else if (unit == QStringLiteral("G") || unit == QStringLiteral("GIB") || unit == QStringLiteral("GB"))
+        multiplier = 1024LL * 1024 * 1024;
+    else if (unit == QStringLiteral("T") || unit == QStringLiteral("TIB") || unit == QStringLiteral("TB"))
+        multiplier = 1024LL * 1024 * 1024 * 1024;
+
+    return static_cast<qint64>(value * multiplier);
+}
+
+QString formatEtaText(qint64 seconds)
+{
+    if (seconds < 0) return QStringLiteral("—");
+    if (seconds < 60)
+        return QStringLiteral("%1s").arg(seconds);
+    if (seconds < 3600)
+        return QStringLiteral("%1m%2s").arg(seconds / 60).arg(seconds % 60);
+    return QStringLiteral("%1h%2m").arg(seconds / 3600).arg((seconds % 3600) / 60);
+}
+
+} // namespace
+
 DownloadTool::DownloadTool(const QString &aria2Path, QWidget *parent)
     : QWidget(parent)
     , m_aria2Path(aria2Path)
@@ -36,6 +76,7 @@ DownloadTool::DownloadTool(const QString &aria2Path, QWidget *parent)
     , m_downloadStartBtn(nullptr)
     , m_downloadCancelBtn(nullptr)
     , m_downloadProcess(nullptr)
+    , m_downloadEtaTimer(nullptr)
     , m_downloadCompleted(0)
     , m_downloadFailed(0)
     , m_downloadCancelling(false)
@@ -158,10 +199,10 @@ DownloadTool::DownloadTool(const QString &aria2Path, QWidget *parent)
     mainLayout->addLayout(settingsRow);
 
     // ---- Progress Table ----
-    m_downloadProgressTable = new QTableWidget(0, 5, this);
+    m_downloadProgressTable = new QTableWidget(0, 6, this);
     m_downloadProgressTable->setHorizontalHeaderLabels({
-        QStringLiteral("文件名"), QStringLiteral("进度"), QStringLiteral("速度"),
-        QStringLiteral("ETA"), QStringLiteral("状态")});
+        QStringLiteral("文件名"), QStringLiteral("进度"), QStringLiteral("大小"),
+        QStringLiteral("速度"), QStringLiteral("剩余时间"), QStringLiteral("状态")});
     m_downloadProgressTable->horizontalHeader()->setStretchLastSection(true);
     m_downloadProgressTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_downloadProgressTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
@@ -169,12 +210,18 @@ DownloadTool::DownloadTool(const QString &aria2Path, QWidget *parent)
     m_downloadProgressTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
     m_downloadProgressTable->horizontalHeader()->resizeSection(2, 80);
     m_downloadProgressTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
-    m_downloadProgressTable->horizontalHeader()->resizeSection(3, 70);
+    m_downloadProgressTable->horizontalHeader()->resizeSection(3, 90);
+    m_downloadProgressTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Fixed);
+    m_downloadProgressTable->horizontalHeader()->resizeSection(4, 70);
     m_downloadProgressTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_downloadProgressTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_downloadProgressTable->verticalHeader()->setVisible(false);
     m_downloadProgressTable->setMinimumHeight(100);
     mainLayout->addWidget(m_downloadProgressTable);
+
+    m_downloadEtaTimer = new QTimer(this);
+    m_downloadEtaTimer->setInterval(500);
+    connect(m_downloadEtaTimer, &QTimer::timeout, this, &DownloadTool::onDownloadEtaTick);
 
     // ---- Overall Progress ----
     m_downloadProgressBar = new QProgressBar(this);
@@ -311,6 +358,10 @@ void DownloadTool::onDownloadStart()
         entry.row = -1;
         entry.completed = false;
         entry.failed = false;
+        entry.percent = 0;
+        entry.totalBytes = -1;
+        entry.speedBytes = 0;
+        entry.lastProgressMs = 0;
 
         if (entry.url.contains(QStringLiteral("://")))
             m_downloadEntries.append(entry);
@@ -377,17 +428,21 @@ void DownloadTool::onDownloadStart()
         m_downloadProgressTable->setCellWidget(row, 1, barContainer);
         m_downloadBars.append(bar);
 
+        QTableWidgetItem *sizeItem = new QTableWidgetItem(QStringLiteral("—"));
+        sizeItem->setTextAlignment(Qt::AlignCenter);
+        m_downloadProgressTable->setItem(row, 2, sizeItem);
+
         QTableWidgetItem *speedItem = new QTableWidgetItem(QStringLiteral("—"));
         speedItem->setTextAlignment(Qt::AlignCenter);
-        m_downloadProgressTable->setItem(row, 2, speedItem);
+        m_downloadProgressTable->setItem(row, 3, speedItem);
 
         QTableWidgetItem *etaItem = new QTableWidgetItem(QStringLiteral("—"));
         etaItem->setTextAlignment(Qt::AlignCenter);
-        m_downloadProgressTable->setItem(row, 3, etaItem);
+        m_downloadProgressTable->setItem(row, 4, etaItem);
 
         QTableWidgetItem *statusItem = new QTableWidgetItem(QStringLiteral("等待中"));
         statusItem->setTextAlignment(Qt::AlignCenter);
-        m_downloadProgressTable->setItem(row, 4, statusItem);
+        m_downloadProgressTable->setItem(row, 5, statusItem);
     }
 
     m_downloadCompleted = 0;
@@ -417,6 +472,8 @@ void DownloadTool::onDownloadStart()
     args << QStringLiteral("--summary-interval=1");
     args << QStringLiteral("--enable-color=false");
     args << QStringLiteral("--enable-rpc=false");
+    args << QStringLiteral("--show-console-readout=true");
+    args << QStringLiteral("--stderr=true");
 
     if (m_downloadProcess) {
         m_downloadProcess->deleteLater();
@@ -432,6 +489,7 @@ void DownloadTool::onDownloadStart()
                 Q_UNUSED(exitStatus);
                 if (m_downloadCancelling) return;
 
+                m_downloadEtaTimer->stop();
                 if (!m_downloadStdoutBuffer.isEmpty())
                     onDownloadProcessOutput();
 
@@ -454,14 +512,14 @@ void DownloadTool::onDownloadStart()
                     if (fileExists || exitCode == 0) {
                         entry.completed = true;
                         m_downloadCompleted++;
-                        QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 4);
+                        QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 5);
                         if (s) s->setText(QStringLiteral("已完成"));
                         if (entry.row < m_downloadBars.size())
                             m_downloadBars[entry.row]->setValue(100);
                     } else {
                         entry.failed = true;
                         m_downloadFailed++;
-                        QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 4);
+                        QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 5);
                         if (s) s->setText(QStringLiteral("失败"));
                     }
                 }
@@ -497,6 +555,7 @@ void DownloadTool::onDownloadStart()
 
     m_downloadProcess->start(m_aria2Path, args);
     m_downloadStatusLabel->setText(QStringLiteral("正在启动下载..."));
+    m_downloadEtaTimer->start();
 
     Utils::logToFile(QStringLiteral("[DOWNLOAD] Start: %1 URLs, dir=%2, conc=%3")
         .arg(m_downloadEntries.size()).arg(outputDir)
@@ -508,6 +567,7 @@ void DownloadTool::onDownloadStart()
 void DownloadTool::onDownloadCancel()
 {
     m_downloadCancelling = true;
+    m_downloadEtaTimer->stop();
     m_downloadStatusLabel->setText(QStringLiteral("正在取消..."));
     m_downloadCancelBtn->setEnabled(false);
 
@@ -526,6 +586,27 @@ void DownloadTool::onDownloadCancel()
     m_downloadStatusLabel->setText(QStringLiteral("已取消"));
 }
 
+void DownloadTool::onDownloadEtaTick()
+{
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    for (auto &entry : m_downloadEntries) {
+        if (entry.row < 0 || entry.completed || entry.failed)
+            continue;
+        if (entry.totalBytes <= 0 || entry.speedBytes <= 0
+            || entry.percent >= 100 || entry.lastProgressMs <= 0)
+            continue;
+
+        qint64 remainAtUpdate = entry.totalBytes * (100 - entry.percent) / 100;
+        qint64 elapsedBytes = entry.speedBytes * (now - entry.lastProgressMs) / 1000;
+        qint64 remain = remainAtUpdate - elapsedBytes;
+        if (remain < 0) remain = 0;
+
+        QTableWidgetItem *etaItem = m_downloadProgressTable->item(entry.row, 4);
+        if (etaItem)
+            etaItem->setText(formatEtaText(remain / entry.speedBytes));
+    }
+}
+
 void DownloadTool::onDownloadProcessOutput()
 {
     if (!m_downloadProcess) return;
@@ -534,7 +615,7 @@ void DownloadTool::onDownloadProcessOutput()
         m_downloadProcess->readAllStandardOutput());
 
     static const QRegularExpression progressRe(
-        QStringLiteral("\\[#(\\S+)\\s+\\S+/(\\S+)\\((\\d+)%\\).*SPD:(\\S+)(?:\\s*ETA:(\\S*))?\\]"));
+        QStringLiteral("\\[#(\\S+)\\s+\\S+/(\\S+)\\((\\d+)%\\)[^\\]]*?(?:DL|SPD):(\\S+)(?:\\s*ETA:(\\S*))?\\]"));
 
     while (true) {
         int idx = m_downloadStdoutBuffer.indexOf('\n');
@@ -550,17 +631,49 @@ void DownloadTool::onDownloadProcessOutput()
         m_downloadStdoutBuffer = m_downloadStdoutBuffer.mid(idx + 1);
         if (line.isEmpty()) continue;
 
+        Utils::logToFile(QStringLiteral("[DOWNLOAD][RAW] ") + line);
+
         int dlPos = line.indexOf(QStringLiteral("Downloading:"));
         if (dlPos >= 0) {
             QString url = line.mid(dlPos + 12).trimmed();
             m_downloadPendingUrl = url;
             for (auto &entry : m_downloadEntries) {
                 if (entry.row >= 0 && entry.url == url) {
-                    QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 4);
+                    QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 5);
                     if (s && s->text() == QStringLiteral("等待中"))
                         s->setText(QStringLiteral("下载中"));
                     break;
                 }
+            }
+            continue;
+        }
+
+        int donePos = line.indexOf(QStringLiteral("Download complete:"));
+        if (donePos >= 0) {
+            QString path = line.mid(donePos + 18).trimmed();
+            QString fileName = path.section(QRegularExpression(QStringLiteral("[/\\\\]")), -1);
+            for (auto &entry : m_downloadEntries) {
+                if (entry.row < 0 || entry.completed) continue;
+                QString displayName = entry.filename.isEmpty()
+                    ? entry.url.section('/', -1).section('?', 0, 0)
+                    : entry.filename;
+                if (displayName != fileName) continue;
+
+                entry.completed = true;
+                m_downloadCompleted++;
+                QTableWidgetItem *s = m_downloadProgressTable->item(entry.row, 5);
+                if (s) s->setText(QStringLiteral("已完成"));
+                if (entry.row < m_downloadBars.size())
+                    m_downloadBars[entry.row]->setValue(100);
+
+                int totalPercent = 0;
+                for (const auto &e : m_downloadEntries) {
+                    if (e.row >= 0 && e.row < m_downloadBars.size())
+                        totalPercent += m_downloadBars[e.row]->value();
+                }
+                m_downloadProgressBar->setValue(m_downloadEntries.size() > 0
+                    ? totalPercent / m_downloadEntries.size() : 0);
+                break;
             }
             continue;
         }
@@ -570,7 +683,6 @@ void DownloadTool::onDownloadProcessOutput()
             QString gid = m.captured(1);
             int percent = m.captured(3).toInt();
             QString speed = m.captured(4);
-            QString eta = m.captured(5);
 
             int entryIdx = -1;
             if (m_gidToIndex.contains(gid)) {
@@ -587,7 +699,7 @@ void DownloadTool::onDownloadProcessOutput()
                 }
             }
 
-            if (entryIdx < 0 && !m_gidToIndex.isEmpty()) {
+            if (entryIdx < 0) {
                 for (int i = 0; i < m_downloadEntries.size(); i++) {
                     if (m_downloadEntries[i].row >= 0 && !m_downloadEntries[i].completed) {
                         bool alreadyMapped = false;
@@ -608,7 +720,7 @@ void DownloadTool::onDownloadProcessOutput()
             DownloadEntry &entry = m_downloadEntries[entryIdx];
             if (entry.row < 0 || entry.completed) continue;
 
-            QTableWidgetItem *statusItem = m_downloadProgressTable->item(entry.row, 4);
+            QTableWidgetItem *statusItem = m_downloadProgressTable->item(entry.row, 5);
             if (statusItem && statusItem->text() == QStringLiteral("等待中"))
                 statusItem->setText(QStringLiteral("下载中"));
 
@@ -617,13 +729,29 @@ void DownloadTool::onDownloadProcessOutput()
             if (bar && bar->value() < 100)
                 bar->setValue(percent);
 
-            QTableWidgetItem *speedItem = m_downloadProgressTable->item(entry.row, 2);
-            if (speedItem) speedItem->setText(speed);
+            qint64 parsedTotal = parseAria2Size(m.captured(2));
+            if (parsedTotal > 0) entry.totalBytes = parsedTotal;
+            entry.speedBytes = parseAria2Size(speed);
+            if (entry.speedBytes < 0) entry.speedBytes = 0;
+            entry.percent = percent;
+            entry.lastProgressMs = QDateTime::currentMSecsSinceEpoch();
 
-            QTableWidgetItem *etaItem = m_downloadProgressTable->item(entry.row, 3);
+            QTableWidgetItem *sizeItem = m_downloadProgressTable->item(entry.row, 2);
+            if (sizeItem && sizeItem->text() == QStringLiteral("—")
+                && m.captured(2) != QStringLiteral("0B"))
+                sizeItem->setText(m.captured(2));
+
+            QTableWidgetItem *speedItem = m_downloadProgressTable->item(entry.row, 3);
+            if (speedItem) speedItem->setText(speed + QStringLiteral("/s"));
+
+            QTableWidgetItem *etaItem = m_downloadProgressTable->item(entry.row, 4);
             if (etaItem) {
-                etaItem->setText(
-                    eta.isEmpty() || eta == QStringLiteral("-") ? QStringLiteral("—") : eta);
+                QString etaText = QStringLiteral("—");
+                if (entry.totalBytes > 0 && entry.speedBytes > 0 && percent < 100) {
+                    qint64 remain = entry.totalBytes * (100 - percent) / 100;
+                    etaText = formatEtaText(remain / entry.speedBytes);
+                }
+                etaItem->setText(etaText);
             }
 
             if (percent >= 100 && !entry.completed) {

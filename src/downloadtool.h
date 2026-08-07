@@ -14,6 +14,7 @@
 #include <QTableWidget>
 #include <QProgressBar>
 #include <QLabel>
+#include <QTimer>
 
 struct DownloadEntry {
     QString url;
@@ -21,6 +22,10 @@ struct DownloadEntry {
     int row;
     bool completed;
     bool failed;
+    int percent;
+    qint64 totalBytes;
+    qint64 speedBytes;
+    qint64 lastProgressMs;
 };
 
 class DownloadTool : public QWidget
@@ -39,6 +44,7 @@ private slots:
     void onDownloadStart();
     void onDownloadCancel();
     void onDownloadProcessOutput();
+    void onDownloadEtaTick();
 
 private:
     void setDownloadUiEnabled(bool enabled);
@@ -62,6 +68,7 @@ private:
     QPushButton *m_downloadCancelBtn;
 
     QProcess *m_downloadProcess;
+    QTimer *m_downloadEtaTimer;
     QList<DownloadEntry> m_downloadEntries;
     QList<QProgressBar *> m_downloadBars;
     QMap<QString, int> m_gidToIndex;
