@@ -9,6 +9,8 @@
 #include <QNetworkInterface>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QVector>
+#include <QPair>
 
 #include "iptool.h"
 
@@ -68,13 +70,17 @@ void IpTool::setupUi()
     QLabel *wanSourceLabel = new QLabel(QStringLiteral("\u67E5\u8BE2\u6E90:"), wanGroup);
     wanSourceLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
     m_ipWanSourceCombo = new QComboBox(wanGroup);
-    m_ipWanSourceCombo->addItem(QStringLiteral("icanhazip.com"), QStringLiteral("http://icanhazip.com"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("ifconfig.me/ip"), QStringLiteral("http://ifconfig.me/ip"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("ipinfo.io/ip"), QStringLiteral("http://ipinfo.io/ip"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("ipecho.net/plain"), QStringLiteral("http://ipecho.net/plain"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("www.trackip.net/ip"), QStringLiteral("http://www.trackip.net/ip"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("httpbin.org/ip"), QStringLiteral("http://httpbin.org/ip"));
-    m_ipWanSourceCombo->addItem(QStringLiteral("ip.sb"), QStringLiteral("http://ip.sb"));
+    const QVector<QPair<QString, QString>> wanSources = {
+        {QStringLiteral("icanhazip.com"), QStringLiteral("http://icanhazip.com")},
+        {QStringLiteral("ifconfig.me/ip"), QStringLiteral("http://ifconfig.me/ip")},
+        {QStringLiteral("ipinfo.io/ip"), QStringLiteral("http://ipinfo.io/ip")},
+        {QStringLiteral("ipecho.net/plain"), QStringLiteral("http://ipecho.net/plain")},
+        {QStringLiteral("www.trackip.net/ip"), QStringLiteral("http://www.trackip.net/ip")},
+        {QStringLiteral("httpbin.org/ip"), QStringLiteral("http://httpbin.org/ip")},
+        {QStringLiteral("ip.sb"), QStringLiteral("http://ip.sb")},
+    };
+    for (const auto &source : wanSources)
+        m_ipWanSourceCombo->addItem(source.first, source.second);
     m_ipWanQueryBtn = new QPushButton(QStringLiteral("\u67E5\u8BE2"), wanGroup);
     m_ipWanQueryBtn->setCursor(Qt::PointingHandCursor);
     m_ipWanQueryBtn->setFixedHeight(28);
@@ -103,6 +109,40 @@ void IpTool::setupUi()
     wanLayout->addLayout(wanRow);
 
     mainLayout->addWidget(wanGroup);
+
+    QGroupBox *curlGroup = new QGroupBox(QStringLiteral("服务器IP查询命令"), this);
+    QVBoxLayout *curlLayout = new QVBoxLayout(curlGroup);
+    curlLayout->setSpacing(8);
+    for (const auto &source : wanSources) {
+        QHBoxLayout *curlRow = new QHBoxLayout();
+        QString command = QStringLiteral("curl ") + source.second;
+        QLabel *commandLabel = new QLabel(command, curlGroup);
+        commandLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        commandLabel->setStyleSheet(QStringLiteral(
+            "font-family: 'Consolas', 'Courier New', monospace;"
+            "font-size: 12px;"
+            "color: #212529;"));
+        QPushButton *copyBtn = new QPushButton(QStringLiteral("复制"), curlGroup);
+        copyBtn->setCursor(Qt::PointingHandCursor);
+        copyBtn->setFixedHeight(28);
+        copyBtn->setFixedWidth(60);
+        copyBtn->setStyleSheet(QStringLiteral("font-size: 12px;"));
+        connect(copyBtn, &QPushButton::clicked, this, [this, copyBtn, command]() {
+            QApplication::clipboard()->setText(command);
+            QString original = copyBtn->text();
+            copyBtn->setText(QStringLiteral("已复制"));
+            copyBtn->setEnabled(false);
+            QTimer::singleShot(1500, this, [copyBtn, original]() {
+                copyBtn->setText(original);
+                copyBtn->setEnabled(true);
+            });
+        });
+        curlRow->addWidget(commandLabel, 1);
+        curlRow->addWidget(copyBtn);
+        curlLayout->addLayout(curlRow);
+    }
+    mainLayout->addWidget(curlGroup);
+
     mainLayout->addStretch(1);
 
     QTimer::singleShot(0, this, [this]() { refreshLanIps(); });
