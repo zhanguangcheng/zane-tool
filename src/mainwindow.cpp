@@ -131,7 +131,7 @@ void MainWindow::setupUi()
         else m_cronTool->stopTimer();
     });
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.2</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.3</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -308,7 +308,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.2</h3>"
+        "<h3>Zane Tool v1.0.3</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"
