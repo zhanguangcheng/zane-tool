@@ -83,7 +83,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_audioTool(nullptr)
 {
     setWindowTitle(QStringLiteral("Zane Tool"));
-    resize(820, 620);
+    resize(880, 710);
     setAcceptDrops(true);
     setupUi();
 

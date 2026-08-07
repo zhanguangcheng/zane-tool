@@ -1,4 +1,4 @@
-# Zane Tool 打包脚本
+﻿# Zane Tool 打包脚本
 # 用法: .\scripts\package.ps1
 
 $ErrorActionPreference = "Stop"
