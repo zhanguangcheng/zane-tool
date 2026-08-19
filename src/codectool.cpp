@@ -79,6 +79,42 @@ QByteArray CodecTool::base64UrlEncode(const QByteArray &input)
     return b64;
 }
 
+static QString unicodeEncode(const QString &input)
+{
+    QString result;
+    result.reserve(input.size() * 6);
+    for (const QChar &ch : input) {
+        ushort u = ch.unicode();
+        if (u > 0x7f)
+            result += QStringLiteral("\\u%1").arg(u, 4, 16, QLatin1Char('0'));
+        else
+            result += ch;
+    }
+    return result;
+}
+
+static QString unicodeDecode(const QString &input)
+{
+    static const QRegularExpression re(QStringLiteral("\\\\u([0-9A-Fa-f]{4})"));
+    if (!input.contains(re))
+        return input;
+
+    QString result;
+    int lastPos = 0;
+    QRegularExpressionMatchIterator it = re.globalMatch(input);
+    while (it.hasNext()) {
+        QRegularExpressionMatch m = it.next();
+        result += input.mid(lastPos, m.capturedStart() - lastPos);
+        bool ok = false;
+        ushort codeUnit = m.captured(1).toUShort(&ok, 16);
+        if (ok)
+            result += QChar(codeUnit);
+        lastPos = m.capturedEnd();
+    }
+    result += input.mid(lastPos);
+    return result;
+}
+
 QString CodecTool::phpEncode(const QJsonValue &value)
 {
     switch (value.type()) {
@@ -255,7 +291,8 @@ QWidget *CodecTool::createDecodeTab()
         QStringLiteral("URL 解码"),
         QStringLiteral("Base64 解码"),
         QStringLiteral("JWT 解码"),
-        QStringLiteral("PHP 反序列化")
+        QStringLiteral("PHP 反序列化"),
+        QStringLiteral("Unicode 解码")
     };
     int n = decodeLabels.size();
     for (int i = 0; i < n; ++i) {
@@ -390,7 +427,8 @@ QWidget *CodecTool::createEncodeTab()
         QStringLiteral("URL 编码"),
         QStringLiteral("Base64 编码"),
         QStringLiteral("PHP 序列化"),
-        QStringLiteral("MD5")
+        QStringLiteral("MD5"),
+        QStringLiteral("Unicode 编码")
     };
     int n = encodeLabels.size();
     for (int i = 0; i < n; ++i) {
@@ -600,6 +638,10 @@ void CodecTool::onDecode()
         m_decodeTextOutput->setPlainText(phpUnserializeOne(input.toUtf8(), pos));
         break;
     }
+    case 4: {
+        m_decodeTextOutput->setPlainText(unicodeDecode(input));
+        break;
+    }
     }
 
     m_decodeOutputStack->setCurrentIndex(type == 2 ? 1 : 0);
@@ -672,6 +714,10 @@ void CodecTool::onEncode()
     case 3: {
         m_encodeOutput->setPlainText(
             QString::fromUtf8(QCryptographicHash::hash(input.toUtf8(), QCryptographicHash::Md5).toHex()));
+        break;
+    }
+    case 4: {
+        m_encodeOutput->setPlainText(unicodeEncode(input));
         break;
     }
     }
