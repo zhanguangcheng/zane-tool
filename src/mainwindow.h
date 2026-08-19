@@ -64,6 +64,7 @@ private:
     QWidget *createCalcPage();
 
     void showAbout();
+    void showChangelog();
 
     QString m_ffmpegPath;
     QListWidget *m_sidebar;

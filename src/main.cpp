@@ -2,15 +2,17 @@
 #include <QMessageBox>
 #include <QFileInfo>
 #include <QIcon>
+#include <QTimer>
 
 #include "mainwindow.h"
 #include "utils.h"
+#include "updatetool.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Zane Tool"));
-    app.setApplicationVersion(QStringLiteral("1.0.3"));
+    app.setApplicationVersion(QStringLiteral("1.0.4"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(
@@ -203,6 +205,10 @@ int main(int argc, char *argv[])
 
     MainWindow window(ffmpegPath, aria2Path, mkcertPath);
     window.show();
+
+    QTimer::singleShot(3000, &app, [&window]() {
+        UpdateTool::checkForUpdate(&window, true);
+    });
 
     return app.exec();
 }

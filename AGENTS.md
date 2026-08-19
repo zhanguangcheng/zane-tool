@@ -46,6 +46,7 @@ ScreenshotPicker  → 区域截图 Widget，信号 screenshotCaptured(QPixmap, Q
 PinWindow         → 置顶贴图窗口 Widget（独立 QWidget，无 parent）
 StopwatchTimer    → 秒表引擎 QObject（QTimer 10ms 轮询 + QElapsedTimer）
 CurlTool          → 解析浏览器复制的 curl 命令并通过 QNetworkAccessManager 发送
+UpdateTool        → 启动时/关于对话框手动检查更新；3 个 version.txt 源按序降级，手动检查弹窗先提示"检测中"再显示直链下载地址（国内下载=gh-proxy，GitHub 下载=官方 release）
 Utils             → 静态：文件大小格式化、格式检测、日志
 ```
 

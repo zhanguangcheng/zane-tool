@@ -1,7 +1,7 @@
 ; Zane Tool NSIS Installer Script
 
 !define PRODUCT_NAME "Zane Tool"
-!define PRODUCT_VERSION "1.0.3"
+!define PRODUCT_VERSION "1.0.4"
 !define PRODUCT_PUBLISHER "Zane"
 !define PRODUCT_WEB_SITE ""
 

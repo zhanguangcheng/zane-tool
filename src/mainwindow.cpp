@@ -36,6 +36,7 @@
 #include "downloadtool.h"
 #include "jsontool.h"
 #include "curltool.h"
+#include "updatetool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -43,6 +44,8 @@
 #include <QGridLayout>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QDialog>
+#include <QTextBrowser>
 #include <QFileInfo>
 #include <QFile>
 #include <QDir>
@@ -133,7 +136,7 @@ void MainWindow::setupUi()
         else m_cronTool->stopTimer();
     });
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#6c757d;text-decoration:none;'>v1.0.3</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#0d6efd;text-decoration:none;'>v1.0.4</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -314,7 +317,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.3</h3>"
+        "<h3>Zane Tool v1.0.4</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"
@@ -329,7 +332,50 @@ void MainWindow::showAbout()
         "MinGW GCC 13.1 &middot; CMake 3.16+</p>"
         "<p><b>作者:</b> Zane</p>"
     );
-    QMessageBox::about(this, QStringLiteral("关于"), msg);
+
+    QMessageBox box(this);
+    box.setWindowTitle(QStringLiteral("关于"));
+    box.setIcon(QMessageBox::Information);
+    box.setTextFormat(Qt::RichText);
+    box.setText(msg);
+    QAbstractButton *changelogBtn = box.addButton(QStringLiteral("版本日志"), QMessageBox::AcceptRole);
+    QAbstractButton *updateBtn = box.addButton(QStringLiteral("检查更新"), QMessageBox::AcceptRole);
+    box.addButton(QMessageBox::Ok);
+    box.exec();
+    if (box.clickedButton() == changelogBtn)
+        showChangelog();
+    else if (box.clickedButton() == updateBtn)
+        UpdateTool::checkForUpdate(this, false);
+}
+
+void MainWindow::showChangelog()
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle(QStringLiteral("更新日志 - Zane Tool"));
+    dlg.resize(680, 480);
+
+    auto *layout = new QVBoxLayout(&dlg);
+    auto *browser = new QTextBrowser(&dlg);
+    browser->setStyleSheet(QStringLiteral(
+        "QTextBrowser { background: #ffffff; border: 1px solid #dee2e6; border-radius: 4px; }"
+        "QTextBrowser a { color: #0d6efd; }"));
+    browser->setOpenExternalLinks(true);
+    browser->setOpenLinks(true);
+
+    QFile file(QStringLiteral(":/docs/CHANGELOG.md"));
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        browser->setMarkdown(QString::fromUtf8(file.readAll()));
+    } else {
+        browser->setPlainText(QStringLiteral("未找到更新日志文件。"));
+    }
+    layout->addWidget(browser);
+
+    auto *closeBtn = new QPushButton(QStringLiteral("关闭"), &dlg);
+    closeBtn->setMinimumWidth(90);
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    dlg.exec();
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *event)

@@ -369,9 +369,10 @@ QWidget *CurlTool::createPage()
     m_responseHeaders = new QTextEdit(respGroup);
     m_responseHeaders->setReadOnly(true);
     m_responseHeaders->setStyleSheet(monoQss);
-    m_responseTabs->addTab(m_jsonTree, QStringLiteral("JSON \u6811"));
     m_responseTabs->addTab(m_responseBody, QStringLiteral("\u54CD\u5E94\u4F53"));
+    m_responseTabs->addTab(m_jsonTree, QStringLiteral("JSON \u6811"));
     m_responseTabs->addTab(m_responseHeaders, QStringLiteral("\u54CD\u5E94\u5934"));
+    m_responseTabs->setCurrentIndex(0);
     respLayout->addWidget(m_responseTabs, 1);
 
     mainLayout->addWidget(respGroup, 1);

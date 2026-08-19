@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 1.0.3 LANGUAGES C CXX)
+project(ZaneTool VERSION 1.0.4 LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -50,6 +50,7 @@ set(SOURCES
     src/xlsxwriter.cpp
     src/curltool.cpp
     src/iptool.cpp
+    src/updatetool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
@@ -94,6 +95,7 @@ set(HEADERS
     src/xlsxwriter.h
     src/curltool.h
     src/iptool.h
+    src/updatetool.h
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h
