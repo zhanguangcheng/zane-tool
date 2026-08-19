@@ -47,6 +47,7 @@ set(SOURCES
     src/certtool.cpp
     src/downloadtool.cpp
     src/jsontool.cpp
+    src/xlsxwriter.cpp
     src/iptool.cpp
     src/stopwatchtimer.cpp
     src/utils.cpp
@@ -89,6 +90,7 @@ set(HEADERS
     src/certtool.h
     src/downloadtool.h
     src/jsontool.h
+    src/xlsxwriter.h
     src/iptool.h
     src/stopwatchtimer.h
     src/utils.h

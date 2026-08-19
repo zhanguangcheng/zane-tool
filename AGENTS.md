@@ -171,6 +171,17 @@ QTimer::singleShot(1500, [btn, original]() {
 - 复制全部按钮（1.5s "已复制" 反馈）
 - 若未选择任何字符类型，显示提示"请至少选择一种字符类型"
 
+## JSON 格式化细节
+
+- 开发工具分组，索引 11，`JsonTool` 类（`jsontool.{h,cpp}`）
+- 输入解析：`QJsonDocument::fromJson`，解析成功后在 `m_doc` 中保存文档，输出树/文本双视图切换
+- 输出树 2 列（Key/Value），对象显示 `{ n }`、数组显示 `[ n ]`，标量按类型着色（字符串绿/数字蓝/布尔橙/null 灰）
+- 每个树节点通过 `item->setData(0, Qt::UserRole, path)` 存储 JSONPath：对象键存键名字符串、数组下标存数字字符串，逐层 `valueByPath()` 沿 `m_doc` 解析（数组→索引，对象→键，天然无歧义）
+- **导出 Excel**（`m_exportBtn`，绿色按钮）：仅当当前选中节点解析结果为数组时才可用（含根节点是数组的情形）；`currentItemChanged` 驱动启用/禁用
+- 导出流程：数组元素全为对象时表头=全部键的首见顺序并集（缺失列补空单元格）；否则单列 `value`；数值→数字单元格、布尔→`t="b"`、字符串→inlineStr、嵌套对象/数组→紧凑 JSON 文本、null/缺失→空单元格
+- `XlsxWriter::writeSheet()`（`xlsxwriter.{h,cpp}`）：内置最小 OOXML + STORE（不压缩）ZIP 写入器（CRC32 表 + 本地文件头 + 中央目录 + EOCD，全 LittleEndian，UTF-8 文件名标记位 0x0800），无第三方依赖；表头粗体样式（styles.xml 两个 xf）
+- 导出自定义：`QFileDialog::getSaveFileName`，默认文件名为数组路径最后一段（无则 `data.xlsx`），自动补 `.xlsx` 后缀；成功更新状态栏（行列数+路径），失败弹错误框
+
 ## HTTPS 证书细节
 
 - `mkcert.exe` 与 exe 同级目录，`main.cpp` 启动时与 ffmpeg/aria2c 一起检查，缺失则致命退出
