@@ -8,7 +8,9 @@
 #include <QTreeWidget>
 #include <QStackedWidget>
 #include <QJsonValue>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QList>
 
 #include "xlsxwriter.h"
 
@@ -37,9 +39,15 @@ private:
     void showOutput();
     QJsonValue valueByPath(const QStringList &path) const;
 
+public:
+    static XlsxWriter::Cell cellFromJsonValue(const QJsonValue &value);
+    static bool arrayToRows(const QJsonArray &array, QStringList &headers, QList<QList<XlsxWriter::Cell>> &rows);
     static void addJsonValue(QTreeWidgetItem *parent, const QString &key, const QJsonValue &value, const QStringList &path);
     static QTreeWidgetItem *createItem(QTreeWidgetItem *parent, const QString &key, const QString &value, const QColor &color, const QStringList &path);
-    static XlsxWriter::Cell cellFromJsonValue(const QJsonValue &value);
+    static void populateTree(QTreeWidget *tree, const QJsonDocument &doc);
+    static QJsonValue valueAtPath(const QJsonDocument &doc, const QStringList &path);
+
+private:
 
     QTextEdit *m_inputEdit;
     QStackedWidget *m_outputStack;

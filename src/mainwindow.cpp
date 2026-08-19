@@ -35,6 +35,7 @@
 #include "certtool.h"
 #include "downloadtool.h"
 #include "jsontool.h"
+#include "curltool.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -75,6 +76,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_cronTool(new CronTool(this))
     , m_codecTool(new CodecTool(this))
     , m_jsonTool(new JsonTool(this))
+    , m_curlTool(new CurlTool(this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
     , m_certTool(new CertTool(this, mkcertPath, this))
@@ -118,7 +120,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_imageTool);
     m_pageCreated[0] = true;
 
-    for (int i = 1; i < 18; ++i)
+    for (int i = 1; i < 19; ++i)
         m_stackedWidget->addWidget(new QWidget());
 
     m_stackedWidget->setCurrentIndex(0);
@@ -179,6 +181,7 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("随机字符串"), 13);
     addTool(QStringLiteral("二维码工具"), 14);
     addTool(QStringLiteral("HTTPS证书"), 15);
+    addTool(QStringLiteral("网络请求"), 18);
 
     addCategory(QStringLiteral("\U0001F310 网络工具"));
     addTool(QStringLiteral("文件批量下载"), 12);
@@ -199,7 +202,7 @@ void MainWindow::setupSidebar()
 
 void MainWindow::ensurePage(int index)
 {
-    if (index < 0 || index >= 18 || m_pageCreated[index])
+    if (index < 0 || index >= 19 || m_pageCreated[index])
         return;
 
     QWidget *page = nullptr;
@@ -261,6 +264,9 @@ void MainWindow::ensurePage(int index)
     case 17:
         page = createCalcPage();
         break;
+    case 18:
+        page = m_curlTool->createPage();
+        break;
     default:
         return;
     }
@@ -315,7 +321,7 @@ void MainWindow::showAbout()
         "<p><b>系统工具</b><br>"
         "屏幕取色 &middot; 截图贴图 &middot; 窗口透明 &middot; 秒表计时</p>"
         "<p><b>开发工具</b><br>"
-        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书</p>"
+        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; JSON格式化 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书 &middot; 网络请求</p>"
         "<p><b>网络工具</b><br>"
         "批量文件下载（aria2c）</p>"
         "<p><b>技术栈</b><br>"

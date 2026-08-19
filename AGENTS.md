@@ -35,7 +35,7 @@ NSIS 脚本位于 `installer\installer.nsi`，安装目录为 `$PROGRAMFILES64\Z
 
 ```
 main.cpp          → QApplication + 全局 QSS（内嵌原始字符串）+ ffmpeg/aria2 存在性检查
-MainWindow        → 侧边栏 + QStackedWidget（14 页）+ 批量队列编排 + 所有工具 UI/逻辑
+MainWindow        → 侧边栏 + QStackedWidget（19 页）+ 批量队列编排 + 所有工具 UI/逻辑
 ImageProcessor    → 静态：构建图片 ffmpeg 参数 + 输出路径
 VideoProcessor    → 静态：构建视频 ffmpeg 参数 + 输出路径
 AudioProcessor    → 静态：构建音频 ffmpeg 参数 + 输出路径
@@ -45,6 +45,7 @@ WindowPicker      → 窗口选择器 Widget（全局钩子），信号 windowPi
 ScreenshotPicker  → 区域截图 Widget，信号 screenshotCaptured(QPixmap, QPoint) / cancelled()
 PinWindow         → 置顶贴图窗口 Widget（独立 QWidget，无 parent）
 StopwatchTimer    → 秒表引擎 QObject（QTimer 10ms 轮询 + QElapsedTimer）
+CurlTool          → 解析浏览器复制的 curl 命令并通过 QNetworkAccessManager 发送
 Utils             → 静态：文件大小格式化、格式检测、日志
 ```
 
@@ -64,16 +65,21 @@ Utils             → 静态：文件大小格式化、格式检测、日志
   屏幕取色 (3)    — createColorPickerPage()
   截图贴图 (4)    — createStickyNotePage()
   窗口透明 (5)    — createTransparencyPage()
-  计时器   (6)    — createTimerPage()
+  秒表计时 (6)    — createTimerPage()
+  计算器   (17)   — createCalcPage()
 开发工具
-  图片转Base64 (7)  — createBase64Page()
-  时间戳转换   (8)  — createTimestampPage()
-  定时任务     (9)  — createCronPage()
-  JWT 解析    (10)  — createJwtPage()
-  随机字符串   (12)  — createRandomStringPage()
-  二维码工具  (13)  — createQrCodePage()
+  编码解码   (10)  — createCodecPage()
+  JSON 格式化 (11) — createJsonPage()
+  图片转Base64 (7) — createBase64Page()
+  时间戳转换   (8) — createTimestampPage()
+  Cron 解析   (9) — createCronPage()
+  随机字符串  (13) — createRandomStringPage()
+  二维码工具  (14) — createQrCodePage()
+  HTTPS证书  (15) — createCertPage()
+  网络请求   (18) — createCurlPage()
 网络工具
-  批量下载    (11)  — createDownloadPage()
+  文件批量下载 (12) — createDownloadPage()
+  本机IP查询  (16) — createIpPage()
 ```
 
 侧边栏使用 `QListWidget#sidebar`，项目通过 `Qt::UserRole` 存储页面索引。选中切换 `QStackedWidget` 页面。
@@ -179,8 +185,24 @@ QTimer::singleShot(1500, [btn, original]() {
 - 每个树节点通过 `item->setData(0, Qt::UserRole, path)` 存储 JSONPath：对象键存键名字符串、数组下标存数字字符串，逐层 `valueByPath()` 沿 `m_doc` 解析（数组→索引，对象→键，天然无歧义）
 - **导出 Excel**（`m_exportBtn`，绿色按钮）：仅当当前选中节点解析结果为数组时才可用（含根节点是数组的情形）；`currentItemChanged` 驱动启用/禁用
 - 导出流程：数组元素全为对象时表头=全部键的首见顺序并集（缺失列补空单元格）；否则单列 `value`；数值→数字单元格、布尔→`t="b"`、字符串→inlineStr、嵌套对象/数组→紧凑 JSON 文本、null/缺失→空单元格
+- 公共静态可复用 API：`cellFromJsonValue()`（单元格转换）、`arrayToRows()`（数组→表头/行）、`populateTree()`（向任意 QTreeWidget 填充 JSON 树）、`valueAtPath()`（按 JSONPath 解析节点值）——「网络请求」的 JSON 树与 Excel 导出均复用它
 - `XlsxWriter::writeSheet()`（`xlsxwriter.{h,cpp}`）：内置最小 OOXML + STORE（不压缩）ZIP 写入器（CRC32 表 + 本地文件头 + 中央目录 + EOCD，全 LittleEndian，UTF-8 文件名标记位 0x0800），无第三方依赖；表头粗体样式（styles.xml 两个 xf）
 - 导出自定义：`QFileDialog::getSaveFileName`，默认文件名为数组路径最后一段（无则 `data.xlsx`），自动补 `.xlsx` 后缀；成功更新状态栏（行列数+路径），失败弹错误框
+
+## 网络请求细节
+
+- 开发工具分组，索引 18，`CurlTool` 类（`curltool.{h,cpp}`），页面由 `createPage()` 产生（懒加载，仿 `JsonTool`）
+- 输入区粘贴浏览器复制的 curl 命令（`QTextEdit`），按钮：发送 / 停止 / 解析 / 清空
+- **解析器不调用 curl.exe**，而是将 curl 命令翻译为 Qt `QNetworkAccessManager` 请求：
+  - Shell 风格分词：自动拼接行尾 `\` 续行，支持单引号（字面量）、双引号（`\"` 等转义）、`$'...'`（ANSI-C 转义，兼容 Firefox）
+  - 选项支持：`--url`/位置参数 URL、`-X/--request`、`-H/--header`（同名字段后写覆盖）、`-b/--cookie`（合并为 `Cookie` 头，拼接 `"; "`）、`-d/--data/--data-raw/--data-ascii/--data-binary/--data-urlencode`（多个用 `&` 拼接，`@file` 读文件）、`--json`（强制 `Content-Type: application/json`）、`-G/--get`（body 并入 URL 查询串）、`-L/--location`（跟随 301/302）、`-k/--insecure`（`ignoreSslErrors()`）、`-u/--user`（Basic 认证）、`-A/--user-agent`、`-e/--referer`、`--compressed`（补 `Accept-Encoding: gzip, deflate`）、`-I/--head`
+  - 无关选项（`-s -sS -f -o -O -v --max-time/--retry/--connect-timeout/--output` 等）静默忽略并汇总到警告标签
+- 方法判定：显式 `-X`/`--request` 优先；有 body 且非 `-G`→POST；`-I`→HEAD；`-G` 有 body→GET；否则 GET。无显式 content-type 且有 body 时按 curl 行为补 `application/x-www-form-urlencoded`
+- 执行：`sendCustomRequest(request, verb, body)`（GET 无 body 走 `get()`）；超时 30s；未加 `-L` 默认不跟随重定向（`RedirectPolicyAttribute` 默认 ManualRedirectPolicy）；停止=`reply->abort()`；`QElapsedTimer` 统计耗时
+- URL 预览框 `QSizePolicy::Ignored`（水平最小宽度为 0，长 URL 在框内滚动），发送中状态文本只含方法不含 URL —— 避免点发送时长文本把窗口最小宽度撑大
+- 响应：状态标签显示 `HTTP 状态码 · 耗时 · 大小`（≥400 标红），`QTabWidget` 分「JSON 树 / 响应体 / 响应头」；勾选「自动格式化 JSON」时将合法 JSON 响应用 `QJsonDocument::Indented` 展示；复制响应体按钮（1.5s "已复制" 反馈）
+- **导出 Excel**（`m_exportExcelBtn`）：响应为合法 JSON 时用 `JsonTool::populateTree()`/`valueAtPath()` 填充「JSON 树」并默认选中根节点；「导出 Excel」仅当选中节点为非空数组时可用（`onJsonTreeSelectionChanged` 驱动）；导出复用 `JsonTool::arrayToRows()`，`QFileDialog` 默认文件名取响应 URL 路径末段（无则 `data.xlsx`），自动补 `.xlsx`，成功后状态标签显示 `已导出 n 行 × m 列 → 路径`
+- 输入框高度自适应：`CurlTool::eventFilter` 监听页面 `Resize`，页面高度 ≥ 700 时 curl 命令输入框 `setMaximumHeight(200)`，否则 90
 
 ## HTTPS 证书细节
 

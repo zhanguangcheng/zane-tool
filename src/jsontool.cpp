@@ -62,6 +62,20 @@ void JsonTool::buildTree(const QJsonDocument &doc)
     }
 }
 
+void JsonTool::populateTree(QTreeWidget *tree, const QJsonDocument &doc)
+{
+    if (!tree)
+        return;
+    tree->clear();
+    if (doc.isNull())
+        return;
+    if (doc.isObject()) {
+        addJsonValue(tree->invisibleRootItem(), QString(), QJsonValue(doc.object()), QStringList());
+    } else if (doc.isArray()) {
+        addJsonValue(tree->invisibleRootItem(), QString(), QJsonValue(doc.array()), QStringList());
+    }
+}
+
 QTreeWidgetItem *JsonTool::createItem(QTreeWidgetItem *parent, const QString &key, const QString &value, const QColor &color, const QStringList &path)
 {
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
@@ -133,11 +147,16 @@ void JsonTool::addJsonValue(QTreeWidgetItem *parent, const QString &key, const Q
 
 QJsonValue JsonTool::valueByPath(const QStringList &path) const
 {
+    return valueAtPath(m_doc, path);
+}
+
+QJsonValue JsonTool::valueAtPath(const QJsonDocument &doc, const QStringList &path)
+{
     QJsonValue current;
-    if (m_doc.isArray())
-        current = QJsonValue(m_doc.array());
-    else if (m_doc.isObject())
-        current = QJsonValue(m_doc.object());
+    if (doc.isArray())
+        current = QJsonValue(doc.array());
+    else if (doc.isObject())
+        current = QJsonValue(doc.object());
     else
         return QJsonValue();
 
@@ -177,6 +196,50 @@ XlsxWriter::Cell JsonTool::cellFromJsonValue(const QJsonValue &value)
     if (value.isArray())
         return XlsxWriter::Cell::text(QString::fromUtf8(QJsonDocument(value.toArray()).toJson(QJsonDocument::Compact)));
     return XlsxWriter::Cell();
+}
+
+bool JsonTool::arrayToRows(const QJsonArray &array, QStringList &headers, QList<QList<XlsxWriter::Cell>> &rows)
+{
+    if (array.isEmpty())
+        return false;
+
+    bool allObjects = true;
+    for (int i = 0; i < array.size(); ++i) {
+        if (!array.at(i).isObject()) {
+            allObjects = false;
+            break;
+        }
+    }
+
+    if (allObjects) {
+        for (int i = 0; i < array.size(); ++i) {
+            const QJsonObject obj = array.at(i).toObject();
+            for (auto it = obj.begin(); it != obj.end(); ++it) {
+                if (!headers.contains(it.key()))
+                    headers.append(it.key());
+            }
+        }
+
+        rows.reserve(array.size());
+        for (int i = 0; i < array.size(); ++i) {
+            const QJsonObject obj = array.at(i).toObject();
+            QList<XlsxWriter::Cell> row;
+            row.reserve(headers.size());
+            for (const QString &header : headers)
+                row.append(cellFromJsonValue(obj.value(header)));
+            rows.append(row);
+        }
+    } else {
+        headers.append(QStringLiteral("value"));
+        rows.reserve(array.size());
+        for (int i = 0; i < array.size(); ++i) {
+            QList<XlsxWriter::Cell> row;
+            row.append(cellFromJsonValue(array.at(i)));
+            rows.append(row);
+        }
+    }
+
+    return !rows.isEmpty();
 }
 
 void JsonTool::updateStatus(const QString &text, bool isError)
@@ -497,44 +560,10 @@ void JsonTool::onExportExcel()
 
     QStringList headers;
     QList<QList<XlsxWriter::Cell>> rows;
-
-    bool allObjects = true;
-    for (int i = 0; i < array.size(); ++i) {
-        if (!array.at(i).isObject()) {
-            allObjects = false;
-            break;
-        }
-    }
-
-    if (allObjects) {
-        QList<QJsonObject> objects;
-        objects.reserve(array.size());
-        for (int i = 0; i < array.size(); ++i)
-            objects.append(array.at(i).toObject());
-
-        for (const QJsonObject &obj : objects) {
-            for (auto it = obj.begin(); it != obj.end(); ++it) {
-                if (!headers.contains(it.key()))
-                    headers.append(it.key());
-            }
-        }
-
-        rows.reserve(objects.size());
-        for (const QJsonObject &obj : objects) {
-            QList<XlsxWriter::Cell> row;
-            row.reserve(headers.size());
-            for (const QString &header : headers)
-                row.append(cellFromJsonValue(obj.value(header)));
-            rows.append(row);
-        }
-    } else {
-        headers.append(QStringLiteral("value"));
-        rows.reserve(array.size());
-        for (int i = 0; i < array.size(); ++i) {
-            QList<XlsxWriter::Cell> row;
-            row.append(cellFromJsonValue(array.at(i)));
-            rows.append(row);
-        }
+    if (!arrayToRows(array, headers, rows)) {
+        QMessageBox::warning(m_outputTree, QStringLiteral("提示"),
+            QStringLiteral("选中的数组无法导出。"));
+        return;
     }
 
     QString fileBase = path.isEmpty() ? QStringLiteral("data") : path.last();
