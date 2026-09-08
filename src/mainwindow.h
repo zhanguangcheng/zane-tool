@@ -40,6 +40,7 @@ class QrCodeTool;
 class CertTool;
 class JsonTool;
 class CurlTool;
+class ExcelTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -88,6 +89,7 @@ private:
     JsonTool *m_jsonTool;
     CurlTool *m_curlTool;
     class DownloadTool *m_downloadTool;
+    ExcelTool *m_excelTool;
 
     QLabel *m_aboutLabel;
 
@@ -100,7 +102,7 @@ private:
     IpTool *m_ipTool;
     CalculatorPage *m_calcPage;
 
-    bool m_pageCreated[19] = {};
+    bool m_pageCreated[20] = {};
 };
 
 #endif // MAINWINDOW_H

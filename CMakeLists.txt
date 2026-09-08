@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 1.0.4 LANGUAGES C CXX)
+project(ZaneTool VERSION 1.0.5 LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -54,6 +54,9 @@ set(SOURCES
     src/stopwatchtimer.cpp
     src/utils.cpp
     src/calculator.cpp
+    src/ziptool.cpp
+    src/xlsxreader.cpp
+    src/exceltool.cpp
     src/resources.qrc
     src/third_party/qrcodegen.cpp
     src/third_party/quirc.c
@@ -99,11 +102,14 @@ set(HEADERS
     src/stopwatchtimer.h
     src/utils.h
     src/calculator.h
+    src/ziptool.h
+    src/xlsxreader.h
+    src/exceltool.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::Network)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::Network z)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 

@@ -36,6 +36,7 @@
 #include "downloadtool.h"
 #include "jsontool.h"
 #include "curltool.h"
+#include "exceltool.h"
 #include "updatetool.h"
 
 #include <QVBoxLayout>
@@ -80,6 +81,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_codecTool(new CodecTool(this))
     , m_jsonTool(new JsonTool(this))
     , m_curlTool(new CurlTool(this))
+    , m_excelTool(new ExcelTool(this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
     , m_certTool(new CertTool(this, mkcertPath, this))
@@ -123,7 +125,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_imageTool);
     m_pageCreated[0] = true;
 
-    for (int i = 1; i < 19; ++i)
+    for (int i = 1; i < 20; ++i)
         m_stackedWidget->addWidget(new QWidget());
 
     m_stackedWidget->setCurrentIndex(0);
@@ -136,7 +138,7 @@ void MainWindow::setupUi()
         else m_cronTool->stopTimer();
     });
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#0d6efd;text-decoration:none;'>v1.0.4</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#0d6efd;text-decoration:none;'>v1.0.5</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -184,11 +186,14 @@ void MainWindow::setupSidebar()
     addTool(QStringLiteral("随机字符串"), 13);
     addTool(QStringLiteral("二维码工具"), 14);
     addTool(QStringLiteral("HTTPS证书"), 15);
-    addTool(QStringLiteral("网络请求"), 18);
 
     addCategory(QStringLiteral("\U0001F310 网络工具"));
     addTool(QStringLiteral("文件批量下载"), 12);
     addTool(QStringLiteral("本机IP查询"), 16);
+    addTool(QStringLiteral("网络请求"), 18);
+
+    addCategory(QStringLiteral("\U0001F4CA 办公工具"));
+    addTool(QStringLiteral("Excel 批处理"), 19);
 
     connect(m_sidebar, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0) return;
@@ -205,7 +210,7 @@ void MainWindow::setupSidebar()
 
 void MainWindow::ensurePage(int index)
 {
-    if (index < 0 || index >= 19 || m_pageCreated[index])
+    if (index < 0 || index >= 20 || m_pageCreated[index])
         return;
 
     QWidget *page = nullptr;
@@ -270,6 +275,9 @@ void MainWindow::ensurePage(int index)
     case 18:
         page = m_curlTool->createPage();
         break;
+    case 19:
+        page = m_excelTool->createPage();
+        break;
     default:
         return;
     }
@@ -317,16 +325,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.4</h3>"
+        "<h3>Zane Tool v1.0.5</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"
         "<p><b>系统工具</b><br>"
         "屏幕取色 &middot; 截图贴图 &middot; 窗口透明 &middot; 秒表计时</p>"
         "<p><b>开发工具</b><br>"
-        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; JSON格式化 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书 &middot; 网络请求</p>"
+        "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; JSON格式化 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书</p>"
         "<p><b>网络工具</b><br>"
-        "批量文件下载（aria2c）</p>"
+        "批量文件下载（aria2c）&middot; 网络请求</p>"
         "<p><b>技术栈</b><br>"
         "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg &middot; aria2c<br>"
         "MinGW GCC 13.1 &middot; CMake 3.16+</p>"
@@ -398,6 +406,26 @@ void MainWindow::dropEvent(QDropEvent *event)
                 return;
             }
         }
+    }
+
+    if (pageIndex == 19 && m_excelTool) {
+        QStringList xlsxPaths;
+        int skipped = 0;
+        for (const QUrl &url : mimeData->urls()) {
+            if (!url.isLocalFile())
+                continue;
+            const QString path = url.toLocalFile();
+            if (path.endsWith(QStringLiteral(".xlsx"), Qt::CaseInsensitive))
+                xlsxPaths.append(path);
+            else
+                ++skipped;
+        }
+        if (!xlsxPaths.isEmpty())
+            m_excelTool->addFiles(xlsxPaths);
+        if (skipped > 0)
+            statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
+        if (!xlsxPaths.isEmpty() || skipped > 0)
+            return;
     }
 
     QListWidget *list = nullptr;

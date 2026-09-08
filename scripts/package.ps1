@@ -30,7 +30,7 @@ Remove-Item -LiteralPath "$BuildDir\tls\qcertonlybackend.dll" -Force -ErrorActio
 
 Write-Host "=== 4/5 同步到安装目录 ===" -ForegroundColor Cyan
 Remove-Item -LiteralPath $InstallerDir -Recurse -Force -ErrorAction SilentlyContinue
-robocopy $BuildDir $InstallerDir /MIR /XD CMakeFiles ZaneTool_autogen /XF *.cmake Makefile CMakeCache.txt /NDL /NJH /NJS
+robocopy $BuildDir $InstallerDir /MIR /XD CMakeFiles ZaneTool_autogen *_test_autogen logs /XF *.cmake Makefile CMakeCache.txt *_test.exe *.xlsx *.json /NDL /NJH /NJS
 Remove-Item -LiteralPath "$InstallerDir\ZaneTool_autogen" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath "$InstallerDir\CMakeFiles" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Force "$InstallerDir\CMakeCache.txt","$InstallerDir\Makefile","$InstallerDir\cmake_install.cmake" -ErrorAction SilentlyContinue

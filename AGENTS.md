@@ -47,6 +47,9 @@ PinWindow         → 置顶贴图窗口 Widget（独立 QWidget，无 parent）
 StopwatchTimer    → 秒表引擎 QObject（QTimer 10ms 轮询 + QElapsedTimer）
 CurlTool          → 解析浏览器复制的 curl 命令并通过 QNetworkAccessManager 发送
 UpdateTool        → 启动时/关于对话框手动检查更新；3 个 version.txt 源按序降级，手动检查弹窗先提示"检测中"再显示直链下载地址（国内下载=gh-proxy，GitHub 下载=官方 release）
+ZipTool           → 静态：最小 ZIP 读写。读=解析中央目录 + zlib raw inflate（STORE/DEFLATE），写=按条目 deflate 压缩（`deflateInit2(-MAX_WBITS)`，压缩后更大则回退 STORE），CRC32 表 + 本地头 + 中央目录 + EOCD；供 xlsx 容器使用
+XlsxReader        → 静态（Xlsx 命名空间）：解析 .xlsx 进入 Sheet 模型（sharedStrings/单元格属性/公式），删除后原样重建（token 回显保留全部 xml 结构），支持 setCellText/setCellEmpty 原地改写
+ExcelTool         → 办公工具：规则表（表头精确替换/数据子串替换/条件清空）、规则 JSON 导入导出、多文件批处理，处理前确认仅首个工作表、处理后列出输出路径
 Utils             → 静态：文件大小格式化、格式检测、日志
 ```
 
@@ -77,10 +80,12 @@ Utils             → 静态：文件大小格式化、格式检测、日志
   随机字符串  (13) — createRandomStringPage()
   二维码工具  (14) — createQrCodePage()
   HTTPS证书  (15) — createCertPage()
-  网络请求   (18) — createCurlPage()
 网络工具
   文件批量下载 (12) — createDownloadPage()
   本机IP查询  (16) — createIpPage()
+  网络请求   (18) — createCurlPage()
+办公工具
+  Excel 批处理 (19) — m_excelTool->createPage()
 ```
 
 侧边栏使用 `QListWidget#sidebar`，项目通过 `Qt::UserRole` 存储页面索引。选中切换 `QStackedWidget` 页面。
@@ -192,7 +197,7 @@ QTimer::singleShot(1500, [btn, original]() {
 
 ## 网络请求细节
 
-- 开发工具分组，索引 18，`CurlTool` 类（`curltool.{h,cpp}`），页面由 `createPage()` 产生（懒加载，仿 `JsonTool`）
+- 网络工具分组，索引 18，`CurlTool` 类（`curltool.{h,cpp}`），页面由 `createPage()` 产生（懒加载，仿 `JsonTool`）
 - 输入区粘贴浏览器复制的 curl 命令（`QTextEdit`），按钮：发送 / 停止 / 解析 / 清空
 - **解析器不调用 curl.exe**，而是将 curl 命令翻译为 Qt `QNetworkAccessManager` 请求：
   - Shell 风格分词：自动拼接行尾 `\` 续行，支持单引号（字面量）、双引号（`\"` 等转义）、`$'...'`（ANSI-C 转义，兼容 Firefox）
@@ -217,4 +222,20 @@ QTimer::singleShot(1500, [btn, original]() {
   - 输出目录必填（无默认值），选择后自动 `mkpath`
   - 成功判定：exitCode=0 且两个 pem 文件存在且非空
 - `m_certRunning` 标志 + `closeEvent` 中 kill 进程，与 ffmpeg/aria2 取消模式一致
+
+## Excel 批处理细节
+
+- 办公工具分组，索引 19，`ExcelTool` 类（`exceltool.{h,cpp}`），页面由 `createPage()` 产生（懒加载，仿 `JsonTool`）
+- 依赖：`ziptool.{h,cpp}`（ZIP 解压+STORE 打包，raw inflate 走工具链自带 zlib，CMake 直接链接 `z`）与 `xlsxreader.{h,cpp}`（Xlsx 命名空间模型）
+- 仅支持 `.xlsx`（OOXML）；规则应用范围 = **每个文件的第一个工作表**，其余工作表与 zip 部件逐字节透传
+- 三类规则（`QTableWidget` 配置）：
+  - 表头替换：查找文本与第 1 行单元格**精确相等**才替换，多规则按顺序链式
+  - 数据替换：第 2 行起**仅文本类型单元格**做子串替换（数字/公式/布尔不动），多规则按顺序链式
+  - 条件清空：条件列字母 + 等于值 + 清空列（支持 `D,E,F` 与范围 `D:F`，自动去重排序）；行内条件列文本（数字按文本）相等则清空指定列；清空保留原单元格 style
+- 规则导入/导出为 JSON：`{ "version":1, "headerReplace":[{find,replace}], "dataReplace":[..], "clearRules":[{column,value,clear:[..]}] }`
+- 读取模型：`Workbook{entries, sheets}` / `Sheet{name, relPath, maxRow, maxCol, cells}` / `Cell{kind, text, formula, number, bool, style, dirty}`；`cells` 以 `row*65536+col` 为 key
+- 解析：`workbook.xml`/`workbook.xml.rels` 只取第一个 sheet；`sharedStrings.xml` 合并富文本 `<r><t>` 但跳过 `<rPh>` 音标；单元格按 t 属性区分 s/inlineStr/b/str/e/数值/公式
+- 改写：**只重建 dirty 单元格**（文本→inlineStr、数值/布尔/清空等），整个 sheet XML 以 QXmlStreamReader token 回显重建并保留所有属性与命名空间声明（`namespaceDeclarations()`），其余 zip 条目不动
+- 处理前弹确认框提示「仅处理第一个工作表」；处理后 `QMessageBox` 列出成功/失败与全部输出路径；文件列表项加 ✔/✘ 前缀与颜色
+- 输出：默认各输入文件同目录 `<原名>_batch.xlsx`；可指定输出目录（空目录名用 `QDir().mkpath` 自动创建），原文件永不覆盖
 
