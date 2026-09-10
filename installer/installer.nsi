@@ -1,7 +1,7 @@
-; Zane Tool NSIS Installer Script
+﻿; Zane Tool NSIS Installer Script
 
 !define PRODUCT_NAME "Zane Tool"
-!define PRODUCT_VERSION "1.0.5"
+!define PRODUCT_VERSION "1.0.6"
 !define PRODUCT_PUBLISHER "Zane"
 !define PRODUCT_WEB_SITE ""
 
@@ -17,10 +17,14 @@ InstallDir "$PROGRAMFILES64\ZaneTool"
 RequestExecutionLevel admin
 
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
+!include "StrFunc.nsh"
+${Using:StrFunc} StrStr
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "..\src\resources\app-icon.ico"
 !define MUI_UNICON "..\src\resources\app-icon.ico"
+!define MUI_FINISHPAGE_RUN "$INSTDIR\ZaneTool.exe"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -34,6 +38,21 @@ RequestExecutionLevel admin
 
 Section "Install"
     SetOutPath "$INSTDIR"
+
+    ; 检测旧版本是否正在运行，若在运行则询问用户后关闭，避免文件被占用
+    nsExec::ExecToStack 'tasklist /FI "IMAGENAME eq ZaneTool.exe" /FO CSV /NH'
+    Pop $0
+    Pop $1
+    ${StrStr} $2 $1 "ZaneTool.exe"
+    ${If} $2 != ""
+        MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "检测到 ZaneTool 正在运行。$\r$\n$\r$\n升级安装前需要先关闭它，是否继续？" IDYES +2
+        Abort
+        nsExec::ExecToLog 'taskkill /F /T /IM ZaneTool.exe'
+        nsExec::ExecToLog 'taskkill /F /T /IM ffmpeg.exe'
+        nsExec::ExecToLog 'taskkill /F /T /IM aria2c.exe'
+        nsExec::ExecToLog 'taskkill /F /T /IM mkcert.exe'
+        Sleep 500
+    ${EndIf}
 
     File /r "ZaneTool\*"
 
@@ -53,6 +72,13 @@ Section "Install"
 SectionEnd
 
 Section "Uninstall"
+    ; 先关闭正在运行的程序，避免文件被占用导致残留
+    nsExec::ExecToLog 'taskkill /F /T /IM ZaneTool.exe'
+    nsExec::ExecToLog 'taskkill /F /T /IM ffmpeg.exe'
+    nsExec::ExecToLog 'taskkill /F /T /IM aria2c.exe'
+    nsExec::ExecToLog 'taskkill /F /T /IM mkcert.exe'
+    Sleep 500
+
     Delete "$INSTDIR\uninst.exe"
     RMDir /r "$INSTDIR"
 

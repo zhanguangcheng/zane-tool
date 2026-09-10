@@ -209,6 +209,7 @@ QTimer::singleShot(1500, [btn, original]() {
 - 响应：状态标签显示 `HTTP 状态码 · 耗时 · 大小`（≥400 标红），`QTabWidget` 分「JSON 树 / 响应体 / 响应头」；勾选「自动格式化 JSON」时将合法 JSON 响应用 `QJsonDocument::Indented` 展示；复制响应体按钮（1.5s "已复制" 反馈）
 - **导出 Excel**（`m_exportExcelBtn`）：响应为合法 JSON 时用 `JsonTool::populateTree()`/`valueAtPath()` 填充「JSON 树」并默认选中根节点；「导出 Excel」仅当选中节点为非空数组时可用（`onJsonTreeSelectionChanged` 驱动）；导出复用 `JsonTool::arrayToRows()`，`QFileDialog` 默认文件名取响应 URL 路径末段（无则 `data.xlsx`），自动补 `.xlsx`，成功后状态标签显示 `已导出 n 行 × m 列 → 路径`
 - 输入框高度自适应：`CurlTool::eventFilter` 监听页面 `Resize`，页面高度 ≥ 700 时 curl 命令输入框 `setMaximumHeight(200)`，否则 90
+- **curl 帮助**：按钮行末尾的「curl 帮助」按钮（`onShowCurlHelp`）弹出帮助对话框，列出常用参数（-k/-v/-i/-I/-X/-d/-F/-L/-H/-o/-u/-A/-e/-m|--max-time）与示例命令；输入框内容为 `curl --help` / `-h` / `help` 时点「解析」或「发送」同样弹出帮助（`showHelpIfRequested` 用 `tokenizeShell` 判定首 token）
 
 ## HTTPS 证书细节
 

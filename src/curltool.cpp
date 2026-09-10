@@ -22,6 +22,8 @@
 #include <QSslError>
 #include <QResizeEvent>
 #include <QFont>
+#include <QDialog>
+#include <QPushButton>
 #include <QJsonArray>
 
 #include "curltool.h"
@@ -201,6 +203,7 @@ QString reasonPhrase(int code)
 CurlTool::CurlTool(QObject *parent)
     : QObject(parent)
     , m_inputEdit(nullptr)
+    , m_helpBtn(nullptr)
     , m_parseBtn(nullptr)
     , m_sendBtn(nullptr)
     , m_stopBtn(nullptr)
@@ -268,10 +271,14 @@ QWidget *CurlTool::createPage()
     m_clearBtn = new QPushButton(QStringLiteral("\u6E05\u7A7A"), inputGroup);
     m_clearBtn->setCursor(Qt::PointingHandCursor);
     m_clearBtn->setObjectName(QStringLiteral("dangerBtn"));
+    m_helpBtn = new QPushButton(QStringLiteral("curl \u5E2E\u52A9"), inputGroup);
+    m_helpBtn->setCursor(Qt::PointingHandCursor);
+    m_helpBtn->setToolTip(QStringLiteral("\u67E5\u770B\u5E38\u7528 curl \u53C2\u6570\u4E0E\u793A\u4F8B"));
     btnRow->addWidget(m_sendBtn);
     btnRow->addWidget(m_stopBtn);
     btnRow->addWidget(m_parseBtn);
     btnRow->addWidget(m_clearBtn);
+    btnRow->addWidget(m_helpBtn);
     btnRow->addStretch(1);
     inputLayout->addLayout(btnRow);
 
@@ -381,6 +388,7 @@ QWidget *CurlTool::createPage()
     connect(m_stopBtn, &QPushButton::clicked, this, &CurlTool::onStop);
     connect(m_parseBtn, &QPushButton::clicked, this, &CurlTool::onParse);
     connect(m_clearBtn, &QPushButton::clicked, this, &CurlTool::onClear);
+    connect(m_helpBtn, &QPushButton::clicked, this, &CurlTool::onShowCurlHelp);
     connect(m_copyBodyBtn, &QPushButton::clicked, this, &CurlTool::onCopyResponseBody);
     connect(m_exportExcelBtn, &QPushButton::clicked, this, &CurlTool::onExportExcel);
     connect(m_autoPrettyCheck, &QCheckBox::toggled, this, &CurlTool::onAutoPrettyToggled);
@@ -401,6 +409,87 @@ bool CurlTool::eventFilter(QObject *obj, QEvent *event)
             m_inputEdit->setMaximumHeight(90);
     }
     return QObject::eventFilter(obj, event);
+}
+
+bool CurlTool::showHelpIfRequested(const QString &text)
+{
+    const QStringList args = tokenizeShell(text);
+    int i = 0;
+    if (!args.isEmpty() && args.at(0).compare(QStringLiteral("curl"), Qt::CaseInsensitive) == 0)
+        ++i;
+    if (i < args.size()) {
+        const QString &a = args.at(i);
+        if (a == QLatin1String("--help") || a == QLatin1String("-h")
+            || a == QLatin1String("help"))
+            return true;
+    }
+    return false;
+}
+
+void CurlTool::onShowCurlHelp()
+{
+    const QString html = QStringLiteral(
+        "<div style=\"color:#495057; line-height:1.6;\">"
+        "<p style=\"margin-top:0;\">本工具会将 curl 命令解析为 Qt 网络请求执行。输入框粘贴命令后点击「解析」或「发送」。"
+        "也可直接输入 <span style=\"font-family:Consolas,monospace;background-color:#f1f3f5;\">curl --help</span> 查看帮助。</p>"
+        "</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-k</span></b>　忽略 HTTPS 证书校验<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -k</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-v</span></b>　显示请求和响应详细信息<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -v</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-i</span></b>　返回请求头 + 请求体<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -i</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-I</span></b>　返回请求头<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -I</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-X</span></b>　请求方式<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/post\" -X POST</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-d</span></b>　请求表单数据 application/x-www-form-urlencoded<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/post\" -X POST -d \"a=b\"</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-F</span></b>　请求表单数据 multipart/form-data<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/post\" -X POST -F \"a=b\"</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-L</span></b>　自动跟踪重定向<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -L</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-H</span></b>　设置请求头<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/post\" -X POST -H \"Content-Type:application/json\" -H \"x-a:b\" -d {\"a\":\"b\"}</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-o</span></b>　保存结果到文件<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -o /path/to/file</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-u</span></b>　设置用户名密码凭证<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -u \"123:abc\"</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-A</span></b>　设置 UserAgent<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -A \"Grass\"</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-e</span></b>　设置 Referer<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -e \"Grass\"</div>") +
+        QStringLiteral("<b><span style=\"font-family:Consolas,monospace;\">-m</span> | <span style=\"font-family:Consolas,monospace;\">--max-time</span></b>　设置超时时间（秒，可使用小数，比如：0.5）<br>"
+            "<div style=\"font-family:Consolas,monospace;background-color:#f8f9fa;border-left:3px solid #0d6efd;padding:6px 10px;margin:4px 0 14px 0;\">curl \"http://httpbin.org/get\" -m 5</div>");
+
+    QDialog dlg(m_pageWidget);
+    dlg.setWindowTitle(QStringLiteral("curl \u5E38\u7528\u53C2\u6570\u5E2E\u52A9"));
+    dlg.resize(680, 540);
+
+    QVBoxLayout *layout = new QVBoxLayout(&dlg);
+    layout->setSpacing(10);
+    layout->setContentsMargins(16, 16, 16, 12);
+
+    QTextEdit *view = new QTextEdit(&dlg);
+    view->setReadOnly(true);
+    view->setHtml(html);
+    view->setStyleSheet(QStringLiteral(
+        "QTextEdit { border: 1px solid #ced4da; border-radius: 6px;"
+        " padding: 10px; background-color: #ffffff; color: #212529; font-size: 13px; }"));
+    view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    QPushButton *closeBtn = new QPushButton(QStringLiteral("知道了"), &dlg);
+    closeBtn->setCursor(Qt::PointingHandCursor);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->addStretch(1);
+    btnLayout->addWidget(closeBtn);
+
+    layout->addWidget(view, 1);
+    layout->addLayout(btnLayout);
+
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    dlg.exec();
 }
 
 void CurlTool::addHeader(ParsedRequest &req, const QString &headerLine, QStringList &warnings)
@@ -729,9 +818,14 @@ void CurlTool::resetResponse()
 
 void CurlTool::onParse()
 {
+    const QString text = m_inputEdit->toPlainText();
+    if (showHelpIfRequested(text)) {
+        onShowCurlHelp();
+        return;
+    }
     QString error;
     QStringList warnings;
-    if (!parseCurl(m_inputEdit->toPlainText(), m_currentRequest, error, warnings)) {
+    if (!parseCurl(text, m_currentRequest, error, warnings)) {
         m_statusLabel->setText(error);
         m_statusLabel->setStyleSheet(QStringLiteral("color: #dc3545; font-size: 13px;"));
         return;
@@ -748,9 +842,14 @@ void CurlTool::onParse()
 
 void CurlTool::onSend()
 {
+    const QString text = m_inputEdit->toPlainText();
+    if (showHelpIfRequested(text)) {
+        onShowCurlHelp();
+        return;
+    }
     QString error;
     QStringList warnings;
-    if (!parseCurl(m_inputEdit->toPlainText(), m_currentRequest, error, warnings)) {
+    if (!parseCurl(text, m_currentRequest, error, warnings)) {
         m_statusLabel->setText(error);
         m_statusLabel->setStyleSheet(QStringLiteral("color: #dc3545; font-size: 13px;"));
         return;

@@ -27,6 +27,7 @@ public:
     QWidget *createPage();
 
 private slots:
+    void onShowCurlHelp();
     void onParse();
     void onSend();
     void onStop();
@@ -56,6 +57,7 @@ private:
 
     void setupUi();
     void addHeader(ParsedRequest &req, const QString &headerLine, QStringList &warnings);
+    bool showHelpIfRequested(const QString &text);
     void applyPreview();
     void resetResponse();
     void renderBody();
@@ -65,6 +67,7 @@ private:
     bool parseCurl(const QString &text, ParsedRequest &req, QString &error, QStringList &warnings);
 
     QTextEdit *m_inputEdit;
+    QPushButton *m_helpBtn;
     QPushButton *m_parseBtn;
     QPushButton *m_sendBtn;
     QPushButton *m_stopBtn;

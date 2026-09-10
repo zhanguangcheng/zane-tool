@@ -2,6 +2,11 @@
 
 Zane Tool 所有重要变更均记录在此文件中。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [v1.0.6] - 2026-09-10
+
+### 新增
+- 网络请求工具新增「curl 帮助」：按钮行末尾帮助按钮（或在输入框输入 `curl --help`）弹出对话框，列出常用参数（-k/-v/-i/-I/-X/-d/-F/-L/-H/-o/-u/-A/-e/-m|--max-time）与示例命令
+
 ## [v1.0.5] - 2026-09-08
 
 ### 新增
