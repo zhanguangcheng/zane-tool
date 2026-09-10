@@ -47,7 +47,9 @@ bool parseRef(const QString &ref, int *row, int *col)
     return true;
 }
 
-void emitStartElement(QByteArray *out, QXmlStreamReader &reader)
+void emitStartElement(QByteArray *out, QXmlStreamReader &reader,
+                      const QString &overrideAttr = QString(),
+                      const QString &overrideValue = QString())
 {
     out->append('<');
     out->append(reader.name().toString().toUtf8());
@@ -66,12 +68,29 @@ void emitStartElement(QByteArray *out, QXmlStreamReader &reader)
         out->append('"');
     }
 
+    bool emittedOverride = false;
     const auto attrs = reader.attributes();
     for (const auto &a : attrs) {
         out->append(' ');
-        out->append(a.qualifiedName().toString().toUtf8());
+        const QString qn = a.qualifiedName().toString();
+        if (!overrideAttr.isEmpty() && qn == overrideAttr) {
+            out->append(overrideAttr.toUtf8());
+            out->append("=\"");
+            out->append(escapeXml(overrideValue).toUtf8());
+            out->append('"');
+            emittedOverride = true;
+            continue;
+        }
+        out->append(qn.toUtf8());
         out->append("=\"");
         out->append(escapeXml(a.value().toString()).toUtf8());
+        out->append('"');
+    }
+    if (!overrideAttr.isEmpty() && !emittedOverride) {
+        out->append(' ');
+        out->append(overrideAttr.toUtf8());
+        out->append("=\"");
+        out->append(escapeXml(overrideValue).toUtf8());
         out->append('"');
     }
     out->append('>');
@@ -134,22 +153,63 @@ QByteArray transformSheetXml(const QByteArray &raw, const Xlsx::Sheet &sheet)
     QByteArray out;
     out += "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 
+    const bool hasDeletes = !sheet.deletedRows.isEmpty();
+    int curRow = 0;
+
     QXmlStreamReader reader(raw);
     while (!reader.atEnd()) {
         const QXmlStreamReader::TokenType tt = reader.readNext();
         switch (tt) {
         case QXmlStreamReader::StartElement: {
-            if (reader.name() == QLatin1String("c")) {
+            const QString name = reader.name().toString();
+            if (name == QLatin1String("row")) {
+                bool ok = false;
+                const int r = reader.attributes().value(QLatin1String("r")).toString().toInt(&ok);
+                curRow = (ok && r > 0) ? r : curRow + 1;
+                if (sheet.deletedRows.contains(curRow)) {
+                    skipElement(reader);
+                    break;
+                }
+                if (hasDeletes) {
+                    const int newRow = sheet.rowMap.value(curRow, curRow);
+                    if (newRow >= 1 && newRow != curRow) {
+                        emitStartElement(&out, reader, QLatin1String("r"), QString::number(newRow));
+                        break;
+                    }
+                }
+                emitStartElement(&out, reader);
+                break;
+            }
+            if (name == QLatin1String("c")) {
                 const QString ref = reader.attributes().value(QLatin1String("r")).toString();
                 int row = 0, col = 0;
                 if (parseRef(ref, &row, &col)) {
                     const auto it = sheet.cells.constFind(Xlsx::cellKey(row, col));
                     if (it != sheet.cells.constEnd() && it->dirty) {
-                        out.append(buildCellXml(row, col, it.value()));
+                        const int newRow = hasDeletes ? sheet.rowMap.value(row, row) : row;
+                        out.append(buildCellXml(newRow, col, it.value()));
                         skipElement(reader);
                         break;
                     }
+                    if (hasDeletes) {
+                        const int newRow = sheet.rowMap.value(row, row);
+                        if (newRow >= 1 && newRow != row) {
+                            emitStartElement(&out, reader, QLatin1String("r"),
+                                             Xlsx::columnLetter(col) + QString::number(newRow));
+                            break;
+                        }
+                    }
                 }
+                emitStartElement(&out, reader);
+                break;
+            }
+            if (name == QLatin1String("dimension") && hasDeletes) {
+                QString ref = QLatin1String("A1");
+                if (sheet.maxRow >= 1 && sheet.maxCol >= 1)
+                    ref = QLatin1String("A1:") + Xlsx::columnLetter(sheet.maxCol)
+                        + QString::number(sheet.maxRow);
+                emitStartElement(&out, reader, QLatin1String("ref"), ref);
+                break;
             }
             emitStartElement(&out, reader);
             break;
@@ -454,6 +514,44 @@ void setCellEmpty(Sheet *sheet, int row, int column)
     updated.style = cell.style;
     updated.dirty = true;
     sheet->cells.insert(key, updated);
+}
+
+void deleteRows(Sheet *sheet, const QList<int> &rows)
+{
+    if (rows.isEmpty())
+        return;
+
+    QSet<int> del;
+    QHash<int, int> map;
+    int newRow = 0;
+    for (int r = 1; r <= sheet->maxRow; ++r) {
+        if (rows.contains(r)) {
+            del.insert(r);
+            continue;
+        }
+        ++newRow;
+        map.insert(r, newRow);
+    }
+    if (del.isEmpty())
+        return;
+
+    sheet->deletedRows = del;
+    sheet->rowMap = map;
+
+    int mRow = 0, mCol = 0;
+    for (auto it = sheet->cells.constBegin(); it != sheet->cells.constEnd(); ++it) {
+        const int r = it.key() / 65536;
+        const int c = it.key() % 65536;
+        if (del.contains(r))
+            continue;
+        const int nr = map.value(r, r);
+        if (nr > mRow)
+            mRow = nr;
+        if (c > mCol)
+            mCol = c;
+    }
+    sheet->maxRow = mRow;
+    sheet->maxCol = mCol;
 }
 
 namespace {

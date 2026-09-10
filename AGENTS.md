@@ -231,8 +231,10 @@ QTimer::singleShot(1500, [btn, original]() {
 - 三类规则（`QTableWidget` 配置）：
   - 表头替换：查找文本与第 1 行单元格**精确相等**才替换，多规则按顺序链式
   - 数据替换：第 2 行起**仅文本类型单元格**做子串替换（数字/公式/布尔不动），多规则按顺序链式
-  - 条件清空：条件列字母 + 等于值 + 清空列（支持 `D,E,F` 与范围 `D:F`，自动去重排序）；行内条件列文本（数字按文本）相等则清空指定列；清空保留原单元格 style
-- 规则导入/导出为 JSON：`{ "version":1, "headerReplace":[{find,replace}], "dataReplace":[..], "clearRules":[{column,value,clear:[..]}] }`
+  - 条件清空/删除行：**动作列**（QComboBox，「清空列」/「删除行」）+ 条件列字母 + 等于值 + 清空列（支持 `D,E,F` 与范围 `D:F`，自动去重排序）；行内条件列文本（数字按文本）相等则清空指定列；清空保留原单元格 style
+  - 条件清空支持**附加条件**（第 4 列，与主条件 AND，组内 OR）：紧凑表达式 `;`=并且、`|`=或者；原子 `列=值`(等于)、`列!=值`(不等于)、`列=`(为空)、`列!=`(非空)，值留空即空/非空判断；例 `B=|C=|D=` 表示 B/C/D 任一为空。非法表达式警告并跳过该规则。`Xlsx::cellText().trimmed().isEmpty()` 判定"为空"（含缺格/空白，0 与 FALSE 不算空）
+  - **删除行动作**：命中主条件+附加条件即删除整行，第 1 行表头永不参与；删除在**全部规则判定完之后统一执行**（`Xlsx::deleteRows`），行号下移、`<row r>`/`<c r>`/`dimension ref` 按 `Sheet::rowMap` 重写、被删 `<row>` 元素整段跳过；局限：合并单元格区域、自动筛选/表、公式文本引用的行号不自动修正
+- 规则导入/导出为 JSON：`{ "version":1, "headerReplace":[{find,replace}], "dataReplace":[..], "clearRules":[{column,value,action,extra:[[{column,op:"empty"}]] ,clear:[..]}] }`；`op` 为 `eq/ne/empty/notempty`，`extra` 每项是一个 OR 组，`action` 为 `"clear"`（缺省）或 `"delete"`，缺省均向后兼容旧规则文件
 - 读取模型：`Workbook{entries, sheets}` / `Sheet{name, relPath, maxRow, maxCol, cells}` / `Cell{kind, text, formula, number, bool, style, dirty}`；`cells` 以 `row*65536+col` 为 key
 - 解析：`workbook.xml`/`workbook.xml.rels` 只取第一个 sheet；`sharedStrings.xml` 合并富文本 `<r><t>` 但跳过 `<rPh>` 音标；单元格按 t 属性区分 s/inlineStr/b/str/e/数值/公式
 - 改写：**只重建 dirty 单元格**（文本→inlineStr、数值/布尔/清空等），整个 sheet XML 以 QXmlStreamReader token 回显重建并保留所有属性与命名空间声明（`namespaceDeclarations()`），其余 zip 条目不动

@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QComboBox>
 #include <QFileInfo>
 #include <QDir>
 #include <QFont>
@@ -76,6 +77,108 @@ QList<int> ExcelTool::parseClearColumns(const QString &input, bool *allOk)
     return cols;
 }
 
+bool ExcelTool::parseExtraConditions(const QString &text,
+                                     QList<QList<ClearCondition>> *groups,
+                                     QString *err)
+{
+    groups->clear();
+    if (err)
+        err->clear();
+    if (text.isEmpty())
+        return true;
+
+    const QStringList groupStrs = text.split(QLatin1Char(';'), Qt::SkipEmptyParts);
+    for (const QString &gs : groupStrs) {
+        QList<ClearCondition> group;
+        const QStringList atomStrs = gs.split(QLatin1Char('|'), Qt::SkipEmptyParts);
+        for (const QString &asis : atomStrs) {
+            const QString as = asis.trimmed();
+            if (as.isEmpty())
+                continue;
+            const int ne = as.indexOf(QLatin1String("!="));
+            const int eq = as.indexOf(QLatin1Char('='));
+            int opPos = -1;
+            bool notEq = false;
+            if (ne != -1) {
+                opPos = ne;
+                notEq = true;
+            } else if (eq != -1) {
+                opPos = eq;
+                notEq = false;
+            } else {
+                if (err)
+                    *err = QStringLiteral("「%1」缺少 = 或 !=").arg(as);
+                return false;
+            }
+            const QString colName = as.left(opPos).trimmed();
+            if (Xlsx::columnFromLetter(colName) == 0) {
+                if (err)
+                    *err = QStringLiteral("「%1」的列 %2 无效").arg(as, colName);
+                return false;
+            }
+            const QString value = as.mid(opPos + (notEq ? 2 : 1));
+            ClearCondition cond;
+            cond.column = colName.toUpper();
+            if (value.isEmpty()) {
+                cond.op = notEq ? ClearCondition::Op::NotEmpty : ClearCondition::Op::Empty;
+            } else {
+                cond.op = notEq ? ClearCondition::Op::Ne : ClearCondition::Op::Eq;
+                cond.value = value;
+            }
+            group.append(cond);
+        }
+        if (!group.isEmpty())
+            groups->append(group);
+    }
+    return true;
+}
+
+QString ExcelTool::serializeExtraConditions(const QList<QList<ClearCondition>> &groups)
+{
+    QStringList groupStrs;
+    for (const auto &group : groups) {
+        QStringList atomStrs;
+        for (const ClearCondition &c : group) {
+            QString atom = c.column;
+            switch (c.op) {
+            case ClearCondition::Op::Eq:
+                atom += QLatin1Char('=') + c.value;
+                break;
+            case ClearCondition::Op::Ne:
+                atom += QLatin1String("!=") + c.value;
+                break;
+            case ClearCondition::Op::Empty:
+                atom += QLatin1Char('=');
+                break;
+            case ClearCondition::Op::NotEmpty:
+                atom += QLatin1String("!=");
+                break;
+            }
+            atomStrs.append(atom);
+        }
+        groupStrs.append(atomStrs.join(QLatin1Char('|')));
+    }
+    return groupStrs.join(QLatin1Char(';'));
+}
+
+bool ExcelTool::evalExtraCondition(const Xlsx::Sheet &sheet, int row, const ClearCondition &cond)
+{
+    const int col = Xlsx::columnFromLetter(cond.column);
+    if (col <= 0)
+        return false;
+    switch (cond.op) {
+    case ClearCondition::Op::Empty:
+        return Xlsx::cellText(sheet, row, col).trimmed().isEmpty();
+    case ClearCondition::Op::NotEmpty:
+        return !Xlsx::cellText(sheet, row, col).trimmed().isEmpty();
+    case ClearCondition::Op::Eq:
+        return Xlsx::cellText(sheet, row, col) == cond.value;
+    case ClearCondition::Op::Ne:
+        return Xlsx::cellText(sheet, row, col) != cond.value;
+    }
+    return false;
+}
+
 void ExcelTool::updateStatus(const QString &text, bool isError)
 {
     m_statusLabel->setText(text);
@@ -106,7 +209,7 @@ QWidget *ExcelTool::createPage()
     ruleLayout->setSpacing(10);
 
     QLabel *hint = new QLabel(QStringLiteral(
-        "按顺序执行：①表头精确替换 ②数据子串替换（含匹配即替换） ③条件清空列。仅处理每个文件的第一个工作表。"),
+        "按顺序执行：①表头精确替换 ②数据子串替换（含匹配即替换） ③条件清空/删除行（命中条件后清空指定列或删除整行并上移）。仅处理每个文件的第一个工作表。"),
         ruleGroup);
     hint->setWordWrap(true);
     hint->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 12px;"));
@@ -129,9 +232,16 @@ QWidget *ExcelTool::createPage()
 
     m_headerTable = makeTable({QStringLiteral("查找"), QStringLiteral("替换为")});
     m_dataTable = makeTable({QStringLiteral("查找"), QStringLiteral("替换为")});
-    m_clearTable = makeTable({QStringLiteral("条件列"), QStringLiteral("等于值"), QStringLiteral("清空列")});
-    m_clearTable->horizontalHeaderItem(2)->setToolTip(QStringLiteral("逗号分隔多个列，如 D,E,F；也支持范围 D:F"));
-    m_clearTable->horizontalHeaderItem(0)->setToolTip(QStringLiteral("列字母，如 A"));
+    m_clearTable = makeTable({QStringLiteral("动作"), QStringLiteral("条件列"), QStringLiteral("等于值"), QStringLiteral("附加条件"), QStringLiteral("清空列")});
+    m_clearTable->horizontalHeaderItem(0)->setToolTip(QStringLiteral("清空列：命中后清空指定列；删除行：命中后删除整行并上移（表头保留）"));
+    m_clearTable->horizontalHeaderItem(1)->setToolTip(QStringLiteral("列字母，如 A"));
+    m_clearTable->horizontalHeaderItem(3)->setToolTip(QStringLiteral(
+        "选填。与主条件同时满足（并且）。|=或者，组间分号=并且；"
+        "原子格式：列=值(等于)、列!=值(不等于)、列=(为空)、列!=(非空)。\n"
+        "例：B=|C=|D= 表示 B/C/D 任一为空"));
+    m_clearTable->horizontalHeaderItem(4)->setToolTip(QStringLiteral("仅动作为「清空列」时使用。逗号分隔多个列，如 D,E,F；也支持范围 D:F"));
+    m_clearTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+    m_clearTable->setColumnWidth(0, 100);
 
     m_tabWidget = new QTabWidget(ruleGroup);
     m_tabWidget->setDocumentMode(true);
@@ -171,11 +281,16 @@ QWidget *ExcelTool::createPage()
         "QPushButton:hover { background-color: #5c636a; }"));
     connect(clearRulesBtn, &QPushButton::clicked, this, &ExcelTool::onClearRules);
 
+    QPushButton *helpBtn = new QPushButton(QStringLiteral("语法帮助"), ruleGroup);
+    helpBtn->setCursor(Qt::PointingHandCursor);
+    connect(helpBtn, &QPushButton::clicked, this, &ExcelTool::onShowSyntaxHelp);
+
     ruleBtns->addWidget(addBtn);
     ruleBtns->addWidget(delBtn);
     ruleBtns->addWidget(importBtn);
     ruleBtns->addWidget(exportBtn);
     ruleBtns->addWidget(clearRulesBtn);
+    ruleBtns->addWidget(helpBtn);
     ruleBtns->addStretch();
     ruleLayout->addLayout(ruleBtns);
 
@@ -268,6 +383,19 @@ void ExcelTool::onAddRule()
         return;
     const int row = table->rowCount();
     table->insertRow(row);
+    if (table == m_clearTable) {
+        QComboBox *cb = new QComboBox();
+        cb->addItems({QStringLiteral("清空列"), QStringLiteral("删除行")});
+        cb->setCursor(Qt::PointingHandCursor);
+        table->setCellWidget(row, 0, cb);
+        for (int c = 1; c < table->columnCount(); ++c) {
+            QTableWidgetItem *item = new QTableWidgetItem();
+            item->setFlags(item->flags() | Qt::ItemIsEditable);
+            table->setItem(row, c, item);
+        }
+        table->editItem(table->item(row, 1));
+        return;
+    }
     for (int c = 0; c < table->columnCount(); ++c) {
         QTableWidgetItem *item = new QTableWidgetItem();
         item->setFlags(item->flags() | Qt::ItemIsEditable);
@@ -320,13 +448,19 @@ void ExcelTool::readRules(QList<HeaderReplace> &headers,
     }
 
     for (int r = 0; r < m_clearTable->rowCount(); ++r) {
-        const QString col = m_clearTable->item(r, 0) ? m_clearTable->item(r, 0)->text().trimmed() : QString();
+        ClearRule::Action action = ClearRule::Action::Clear;
+        if (const auto *cb = qobject_cast<QComboBox *>(m_clearTable->cellWidget(r, 0))) {
+            if (cb->currentIndex() == 1)
+                action = ClearRule::Action::DeleteRow;
+        }
+        const QString col = m_clearTable->item(r, 1) ? m_clearTable->item(r, 1)->text().trimmed() : QString();
         if (col.isEmpty())
             continue;
-        const QString value = m_clearTable->item(r, 1) ? m_clearTable->item(r, 1)->text() : QString();
-        const QString clearStr = m_clearTable->item(r, 2) ? m_clearTable->item(r, 2)->text().trimmed() : QString();
+        const QString value = m_clearTable->item(r, 2) ? m_clearTable->item(r, 2)->text() : QString();
+        const QString extraStr = m_clearTable->item(r, 3) ? m_clearTable->item(r, 3)->text().trimmed() : QString();
+        const QString clearStr = m_clearTable->item(r, 4) ? m_clearTable->item(r, 4)->text().trimmed() : QString();
 
-        if (clearStr.isEmpty()) {
+        if (action == ClearRule::Action::Clear && clearStr.isEmpty()) {
             warnings += QStringLiteral("条件列 %1 未指定清空列，已跳过\n").arg(col);
             continue;
         }
@@ -334,16 +468,25 @@ void ExcelTool::readRules(QList<HeaderReplace> &headers,
             warnings += QStringLiteral("条件列 %1 不是有效列名，已跳过\n").arg(col);
             continue;
         }
-        bool ok = false;
-        const QList<int> cols = parseClearColumns(clearStr, &ok);
-        if (!ok || cols.isEmpty()) {
-            warnings += QStringLiteral("条件「%1=%2」的清空列 %3 无效，已跳过\n").arg(col, value, clearStr);
+        QStringList clearLetters;
+        if (action == ClearRule::Action::Clear) {
+            bool ok = false;
+            const QList<int> cols = parseClearColumns(clearStr, &ok);
+            if (!ok || cols.isEmpty()) {
+                warnings += QStringLiteral("条件「%1=%2」的清空列 %3 无效，已跳过\n").arg(col, value, clearStr);
+                continue;
+            }
+            for (int c : cols)
+                clearLetters.append(Xlsx::columnLetter(c));
+        }
+        QList<QList<ClearCondition>> extraGroups;
+        QString extraErr;
+        if (!extraStr.isEmpty() && !parseExtraConditions(extraStr, &extraGroups, &extraErr)) {
+            warnings += QStringLiteral("条件「%1=%2」的附加条件 %3 无效（%4），已跳过\n")
+                .arg(col, value, extraStr, extraErr);
             continue;
         }
-        QStringList clearLetters;
-        for (int c : cols)
-            clearLetters.append(Xlsx::columnLetter(c));
-        clears.append(ClearRule{col.toUpper(), value, clearLetters});
+        clears.append(ClearRule{action, col.toUpper(), value, extraGroups, clearLetters});
     }
 }
 
@@ -381,14 +524,21 @@ void ExcelTool::loadRulesToTables(const QList<HeaderReplace> &headers,
     for (const ClearRule &cr : clears) {
         const int r = m_clearTable->rowCount();
         m_clearTable->insertRow(r);
+        QComboBox *cb = new QComboBox();
+        cb->addItems({QStringLiteral("清空列"), QStringLiteral("删除行")});
+        cb->setCursor(Qt::PointingHandCursor);
+        cb->setCurrentIndex(cr.action == ClearRule::Action::DeleteRow ? 1 : 0);
+        m_clearTable->setCellWidget(r, 0, cb);
         QTableWidgetItem *ci = new QTableWidgetItem(cr.column);
         QTableWidgetItem *vi = new QTableWidgetItem(cr.value);
+        QTableWidgetItem *ei = new QTableWidgetItem(serializeExtraConditions(cr.extraGroups));
         QTableWidgetItem *li = new QTableWidgetItem(cr.clearColumns.join(QLatin1String(",")));
-        for (QTableWidgetItem *item : {ci, vi, li})
+        for (QTableWidgetItem *item : {ci, vi, ei, li})
             item->setFlags(item->flags() | Qt::ItemIsEditable);
-        m_clearTable->setItem(r, 0, ci);
-        m_clearTable->setItem(r, 1, vi);
-        m_clearTable->setItem(r, 2, li);
+        m_clearTable->setItem(r, 1, ci);
+        m_clearTable->setItem(r, 2, vi);
+        m_clearTable->setItem(r, 3, ei);
+        m_clearTable->setItem(r, 4, li);
     }
 }
 
@@ -419,6 +569,31 @@ void ExcelTool::onExportRules()
         QJsonObject o;
         o.insert(QStringLiteral("column"), cr.column);
         o.insert(QStringLiteral("value"), cr.value);
+        o.insert(QStringLiteral("action"),
+                 cr.action == ClearRule::Action::DeleteRow ? QStringLiteral("delete") : QStringLiteral("clear"));
+        if (!cr.extraGroups.isEmpty()) {
+            QJsonArray extraList;
+            for (const auto &group : cr.extraGroups) {
+                QJsonArray groupList;
+                for (const ClearCondition &cond : group) {
+                    QJsonObject c;
+                    c.insert(QStringLiteral("column"), cond.column);
+                    QString opStr;
+                    switch (cond.op) {
+                    case ClearCondition::Op::Eq: opStr = QStringLiteral("eq"); break;
+                    case ClearCondition::Op::Ne: opStr = QStringLiteral("ne"); break;
+                    case ClearCondition::Op::Empty: opStr = QStringLiteral("empty"); break;
+                    case ClearCondition::Op::NotEmpty: opStr = QStringLiteral("notempty"); break;
+                    }
+                    c.insert(QStringLiteral("op"), opStr);
+                    if (cond.op == ClearCondition::Op::Eq || cond.op == ClearCondition::Op::Ne)
+                        c.insert(QStringLiteral("value"), cond.value);
+                    groupList.append(c);
+                }
+                extraList.append(groupList);
+            }
+            o.insert(QStringLiteral("extra"), extraList);
+        }
         QJsonArray clearList;
         for (const QString &c : cr.clearColumns)
             clearList.append(c);
@@ -496,9 +671,38 @@ void ExcelTool::onImportRules()
         const QJsonArray clearList = o.value(QStringLiteral("clear")).toArray();
         for (const QJsonValue &c : clearList)
             clearCols.append(c.toString());
-        clears.append(ClearRule{o.value(QStringLiteral("column")).toString(),
-                                o.value(QStringLiteral("value")).toString(),
-                                clearCols});
+        QList<QList<ClearCondition>> extraGroups;
+        const QJsonArray extraList = o.value(QStringLiteral("extra")).toArray();
+        for (const QJsonValue &g : extraList) {
+            QList<ClearCondition> group;
+            const QJsonArray groupList = g.toArray();
+            for (const QJsonValue &cv : groupList) {
+                const QJsonObject c = cv.toObject();
+                ClearCondition cond;
+                cond.column = c.value(QStringLiteral("column")).toString();
+                const QString opStr = c.value(QStringLiteral("op")).toString();
+                if (opStr == QLatin1String("notempty"))
+                    cond.op = ClearCondition::Op::NotEmpty;
+                else if (opStr == QLatin1String("empty"))
+                    cond.op = ClearCondition::Op::Empty;
+                else if (opStr == QLatin1String("ne"))
+                    cond.op = ClearCondition::Op::Ne;
+                else
+                    cond.op = ClearCondition::Op::Eq;
+                cond.value = c.value(QStringLiteral("value")).toString();
+                group.append(cond);
+            }
+            if (!group.isEmpty())
+                extraGroups.append(group);
+        }
+        ClearRule cr;
+        cr.column = o.value(QStringLiteral("column")).toString();
+        cr.value = o.value(QStringLiteral("value")).toString();
+        cr.extraGroups = extraGroups;
+        cr.clearColumns = clearCols;
+        cr.action = (o.value(QStringLiteral("action")).toString() == QLatin1String("delete"))
+            ? ClearRule::Action::DeleteRow : ClearRule::Action::Clear;
+        clears.append(cr);
     }
 
     loadRulesToTables(headers, data, clears);
@@ -512,6 +716,33 @@ void ExcelTool::onClearRules()
     m_dataTable->setRowCount(0);
     m_clearTable->setRowCount(0);
     updateStatus(QStringLiteral("规则已清空"), false);
+}
+
+void ExcelTool::onShowSyntaxHelp()
+{
+    QMessageBox box(QMessageBox::Information, QStringLiteral("语法帮助"),
+        QStringLiteral(
+            "<b>附加条件</b>（条件清空表第 4 列，选填）："
+            "<span style=\"font-family:Consolas,monospace\">;|=|</span>"
+            "<br><br>"
+            "<b>原子条件</b>（列名 + <span style=\"font-family:Consolas,monospace\">=</span> 或 "
+            "<span style=\"font-family:Consolas,monospace\">!=</span> + 值）：<br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">B=值</span>　B 列等于 值<br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">B!=值</span>　B 列不等于 值<br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">B=</span>&nbsp;&nbsp;&nbsp;　B 列为空（等号后留空）<br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">B!=</span>&nbsp;&nbsp;　B 列非空<br><br>"
+            "<b>组合规则：</b><br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">|　</span>　或者（同组内命中其一即可）<br>"
+            "&nbsp;&nbsp;<span style=\"font-family:Consolas,monospace\">;　</span>　并且（各组之间都要满足）<br><br>"
+            "<b>示例</b>（条件列 A、等于值 xxx）：<br>"
+            "&nbsp;&nbsp;附加条件 <span style=\"font-family:Consolas,monospace\">B=|C=|D=</span>　→ A=xxx 且（B 或 C 或 D 任一为空）<br>"
+            "&nbsp;&nbsp;附加条件 <span style=\"font-family:Consolas,monospace\">B=在职;E!=1</span>　→ A=xxx 且 B=在职 且 E≠1<br><br>"
+            "<b>清空列</b>格式：<span style=\"font-family:Consolas,monospace\">D,E,F</span> 或 "
+            "<span style=\"font-family:Consolas,monospace\">D:F</span>（仅「清空列」动作使用）<br><br>"
+            "<b>动作</b>：清空列 = 命中后清空指定列；删除行 = 整行删除并上移（第 1 行表头永不删除）"),
+        QMessageBox::NoButton, m_fileList);
+    box.addButton(QStringLiteral("知道了"), QMessageBox::AcceptRole);
+    box.exec();
 }
 
 void ExcelTool::addFiles(const QStringList &paths)
@@ -622,8 +853,10 @@ bool ExcelTool::processOne(const QString &src, const QString &outDir,
         }
     }
 
-    // 3. 条件清空
+    // 3. 条件清空 / 删除行
     if (!clears.isEmpty()) {
+        QList<int> delRows;
+        const int ruleMaxRow = sheet.maxRow;
         for (const ClearRule &cr : clears) {
             const int condCol = Xlsx::columnFromLetter(cr.column);
             if (condCol <= 0)
@@ -634,13 +867,36 @@ bool ExcelTool::processOne(const QString &src, const QString &outDir,
                 if (c > 0)
                     clearCols.append(c);
             }
-            for (int row = 2; row <= sheet.maxRow; ++row) {
+            for (int row = 2; row <= ruleMaxRow; ++row) {
                 if (Xlsx::cellText(sheet, row, condCol) != cr.value)
                     continue;
-                for (int cc : clearCols)
-                    Xlsx::setCellEmpty(&sheet, row, cc);
+                bool match = true;
+                for (const auto &group : cr.extraGroups) {
+                    bool groupOk = false;
+                    for (const ClearCondition &cond : group) {
+                        if (evalExtraCondition(sheet, row, cond)) {
+                            groupOk = true;
+                            break;
+                        }
+                    }
+                    if (!groupOk) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (!match)
+                    continue;
+                if (cr.action == ClearRule::Action::DeleteRow) {
+                    if (!delRows.contains(row))
+                        delRows.append(row);
+                } else {
+                    for (int cc : clearCols)
+                        Xlsx::setCellEmpty(&sheet, row, cc);
+                }
             }
         }
+        if (!delRows.isEmpty())
+            Xlsx::deleteRows(&sheet, delRows);
     }
 
     const QString base = QFileInfo(src).completeBaseName();

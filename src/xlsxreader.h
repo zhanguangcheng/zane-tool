@@ -3,6 +3,7 @@
 
 #include <QHash>
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -37,6 +38,9 @@ struct Sheet
     int maxRow = 0;
     int maxCol = 0;
     QHash<int, Cell> cells;
+
+    QSet<int> deletedRows;                          // rows removed by deleteRows()
+    QHash<int, int> rowMap;                         // originalRow -> newRow (after deletions)
 };
 
 struct Workbook
@@ -54,6 +58,7 @@ QString columnLetter(int column);               // 1-based column -> "A"
 QString cellText(const Sheet &sheet, int row, int column);
 void setCellText(Sheet *sheet, int row, int column, const QString &text);
 void setCellEmpty(Sheet *sheet, int row, int column);
+void deleteRows(Sheet *sheet, const QList<int> &rows);
 
 } // namespace Xlsx
 

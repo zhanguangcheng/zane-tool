@@ -13,6 +13,8 @@ class QLineEdit;
 class QListWidget;
 class QLabel;
 
+namespace Xlsx { struct Sheet; }
+
 class ExcelTool : public QObject
 {
     Q_OBJECT
@@ -28,6 +30,7 @@ private slots:
     void onImportRules();
     void onExportRules();
     void onClearRules();
+    void onShowSyntaxHelp();
     void onAddFiles();
     void onRemoveFiles();
     void onClearFiles();
@@ -37,7 +40,22 @@ private slots:
 private:
     struct HeaderReplace { QString find; QString replace; };
     struct DataReplace { QString find; QString replace; };
-    struct ClearRule { QString column; QString value; QStringList clearColumns; };
+    struct ClearCondition
+    {
+        enum class Op { Eq, Ne, Empty, NotEmpty };
+        QString column;
+        Op op = Op::Eq;
+        QString value;
+    };
+    struct ClearRule
+    {
+        enum class Action { Clear, DeleteRow };
+        Action action = Action::Clear;
+        QString column;                  // 主条件列
+        QString value;                   // 主条件等于值
+        QList<QList<ClearCondition>> extraGroups;  // 附加条件：每组内 OR，组间 AND
+        QStringList clearColumns;        // 仅 action==Clear 时使用
+    };
 
     void readRules(QList<HeaderReplace> &headers,
                    QList<DataReplace> &data,
@@ -54,6 +72,11 @@ private:
     void updateStatus(const QString &text, bool isError);
     QTableWidget *activeRuleTable() const;
     static QList<int> parseClearColumns(const QString &input, bool *allOk);
+    static bool parseExtraConditions(const QString &text,
+                                     QList<QList<ClearCondition>> *groups,
+                                     QString *err);
+    static QString serializeExtraConditions(const QList<QList<ClearCondition>> &groups);
+    static bool evalExtraCondition(const Xlsx::Sheet &sheet, int row, const ClearCondition &cond);
 
     QTabWidget *m_tabWidget;
     QTableWidget *m_headerTable;
