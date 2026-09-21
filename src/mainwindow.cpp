@@ -37,6 +37,7 @@
 #include "jsontool.h"
 #include "curltool.h"
 #include "exceltool.h"
+#include "pdftool.h"
 #include "updatetool.h"
 
 #include <QVBoxLayout>
@@ -65,7 +66,7 @@
 #include <QImage>
 #include <QPainter>
 
-MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent)
+MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, const QString &qpdfPath, QWidget *parent)
     : QMainWindow(parent)
     , m_ffmpegPath(ffmpegPath)
     , m_aria2Path(aria2Path)
@@ -82,6 +83,7 @@ MainWindow::MainWindow(const QString &ffmpegPath, const QString &aria2Path, cons
     , m_jsonTool(new JsonTool(this))
     , m_curlTool(new CurlTool(this))
     , m_excelTool(new ExcelTool(this))
+    , m_pdfTool(new PdfTool(qpdfPath, this))
     , m_randomStringTool(new RandomStringTool(this))
     , m_qrCodeTool(new QrCodeTool(m_screenshotTool, this))
     , m_certTool(new CertTool(this, mkcertPath, this))
@@ -125,7 +127,7 @@ void MainWindow::setupUi()
     m_stackedWidget->addWidget(m_imageTool);
     m_pageCreated[0] = true;
 
-    for (int i = 1; i < 20; ++i)
+    for (int i = 1; i < 21; ++i)
         m_stackedWidget->addWidget(new QWidget());
 
     m_stackedWidget->setCurrentIndex(0);
@@ -138,7 +140,7 @@ void MainWindow::setupUi()
         else m_cronTool->stopTimer();
     });
 
-    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#0d6efd;text-decoration:none;'>v1.0.6</a>"), this);
+    m_aboutLabel = new QLabel(QStringLiteral("<a href='about' style='color:#0d6efd;text-decoration:none;'>v1.0.7</a>"), this);
     m_aboutLabel->setCursor(Qt::PointingHandCursor);
     connect(m_aboutLabel, &QLabel::linkActivated, this, &MainWindow::showAbout);
     statusBar()->addPermanentWidget(m_aboutLabel);
@@ -194,6 +196,7 @@ void MainWindow::setupSidebar()
 
     addCategory(QStringLiteral("\U0001F4CA 办公工具"));
     addTool(QStringLiteral("Excel 批处理"), 19);
+    addTool(QStringLiteral("PDF 工具"), 20);
 
     connect(m_sidebar, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0) return;
@@ -210,7 +213,7 @@ void MainWindow::setupSidebar()
 
 void MainWindow::ensurePage(int index)
 {
-    if (index < 0 || index >= 20 || m_pageCreated[index])
+    if (index < 0 || index >= 21 || m_pageCreated[index])
         return;
 
     QWidget *page = nullptr;
@@ -278,6 +281,9 @@ void MainWindow::ensurePage(int index)
     case 19:
         page = m_excelTool->createPage();
         break;
+    case 20:
+        page = m_pdfTool->createPage();
+        break;
     default:
         return;
     }
@@ -325,7 +331,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::showAbout()
 {
     QString msg = QStringLiteral(
-        "<h3>Zane Tool v1.0.6</h3>"
+        "<h3>Zane Tool v1.0.7</h3>"
         "<p>集成 ffmpeg 与 aria2c 的桌面端效率工具箱。</p>"
         "<p><b>媒体工具</b><br>"
         "图片/视频/音频批量处理：压缩、缩放、格式转换</p>"
@@ -335,8 +341,10 @@ void MainWindow::showAbout()
         "图片转Base64 &middot; 时间戳转换 &middot; Cron 解析 &middot; 编码解码 &middot; JSON格式化 &middot; 随机字符串 &middot; 二维码工具 &middot; HTTPS证书</p>"
         "<p><b>网络工具</b><br>"
         "批量文件下载（aria2c）&middot; 网络请求</p>"
+        "<p><b>办公工具</b><br>"
+        "Excel 批处理 &middot; PDF 工具（合并/拆分/编排/加解密/压缩/信息）</p>"
         "<p><b>技术栈</b><br>"
-        "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg &middot; aria2c<br>"
+        "Qt 6 (Widgets) &middot; C++17 &middot; ffmpeg &middot; aria2c &middot; qpdf<br>"
         "MinGW GCC 13.1 &middot; CMake 3.16+</p>"
         "<p><b>作者:</b> Zane</p>"
     );
@@ -425,6 +433,26 @@ void MainWindow::dropEvent(QDropEvent *event)
         if (skipped > 0)
             statusBar()->showMessage(QStringLiteral("已跳过 %1 个不支持的文件").arg(skipped), 3000);
         if (!xlsxPaths.isEmpty() || skipped > 0)
+            return;
+    }
+
+    if (pageIndex == 20 && m_pdfTool) {
+        QStringList pdfPaths;
+        int skipped = 0;
+        for (const QUrl &url : mimeData->urls()) {
+            if (!url.isLocalFile())
+                continue;
+            const QString path = url.toLocalFile();
+            if (path.endsWith(QStringLiteral(".pdf"), Qt::CaseInsensitive))
+                pdfPaths.append(path);
+            else
+                ++skipped;
+        }
+        if (!pdfPaths.isEmpty())
+            m_pdfTool->addFiles(pdfPaths);
+        if (skipped > 0)
+            statusBar()->showMessage(QStringLiteral("已跳过 %1 个非 PDF 文件").arg(skipped), 3000);
+        if (!pdfPaths.isEmpty() || skipped > 0)
             return;
     }
 

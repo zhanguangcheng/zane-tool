@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ZaneTool VERSION 1.0.6 LANGUAGES C CXX)
+project(ZaneTool VERSION 1.0.7 LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -57,6 +57,7 @@ set(SOURCES
     src/ziptool.cpp
     src/xlsxreader.cpp
     src/exceltool.cpp
+    src/pdftool.cpp
     src/resources.qrc
     src/third_party/qrcodegen.cpp
     src/third_party/quirc.c
@@ -105,6 +106,7 @@ set(HEADERS
     src/ziptool.h
     src/xlsxreader.h
     src/exceltool.h
+    src/pdftool.h
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${RESOURCES})

@@ -1,7 +1,7 @@
 ﻿; Zane Tool NSIS Installer Script
 
 !define PRODUCT_NAME "Zane Tool"
-!define PRODUCT_VERSION "1.0.6"
+!define PRODUCT_VERSION "1.0.7"
 !define PRODUCT_PUBLISHER "Zane"
 !define PRODUCT_WEB_SITE ""
 
@@ -51,6 +51,7 @@ Section "Install"
         nsExec::ExecToLog 'taskkill /F /T /IM ffmpeg.exe'
         nsExec::ExecToLog 'taskkill /F /T /IM aria2c.exe'
         nsExec::ExecToLog 'taskkill /F /T /IM mkcert.exe'
+        nsExec::ExecToLog 'taskkill /F /T /IM qpdf.exe'
         Sleep 500
     ${EndIf}
 
@@ -77,6 +78,7 @@ Section "Uninstall"
     nsExec::ExecToLog 'taskkill /F /T /IM ffmpeg.exe'
     nsExec::ExecToLog 'taskkill /F /T /IM aria2c.exe'
     nsExec::ExecToLog 'taskkill /F /T /IM mkcert.exe'
+    nsExec::ExecToLog 'taskkill /F /T /IM qpdf.exe'
     Sleep 500
 
     Delete "$INSTDIR\uninst.exe"

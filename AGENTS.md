@@ -50,6 +50,7 @@ UpdateTool        → 启动时/关于对话框手动检查更新；3 个 versio
 ZipTool           → 静态：最小 ZIP 读写。读=解析中央目录 + zlib raw inflate（STORE/DEFLATE），写=按条目 deflate 压缩（`deflateInit2(-MAX_WBITS)`，压缩后更大则回退 STORE），CRC32 表 + 本地头 + 中央目录 + EOCD；供 xlsx 容器使用
 XlsxReader        → 静态（Xlsx 命名空间）：解析 .xlsx 进入 Sheet 模型（sharedStrings/单元格属性/公式），删除后原样重建（token 回显保留全部 xml 结构），支持 setCellText/setCellEmpty 原地改写
 ExcelTool         → 办公工具：规则表（表头精确替换/数据子串替换/条件清空）、规则 JSON 导入导出、多文件批处理，处理前确认仅首个工作表、处理后列出输出路径
+PdfTool           → 办公工具：QTabWidget 五页（合并/拆分提取/页面编排/加解密/压缩优化/信息），全部通过 QProcess 调用同级 qpdf.exe
 Utils             → 静态：文件大小格式化、格式检测、日志
 ```
 
@@ -86,6 +87,7 @@ Utils             → 静态：文件大小格式化、格式检测、日志
   网络请求   (18) — createCurlPage()
 办公工具
   Excel 批处理 (19) — m_excelTool->createPage()
+  PDF 工具    (20) — m_pdfTool->createPage()
 ```
 
 侧边栏使用 `QListWidget#sidebar`，项目通过 `Qt::UserRole` 存储页面索引。选中切换 `QStackedWidget` 页面。
@@ -186,7 +188,7 @@ QTimer::singleShot(1500, [btn, original]() {
 ## JSON 格式化细节
 
 - 开发工具分组，索引 11，`JsonTool` 类（`jsontool.{h,cpp}`）
-- 输入解析：`QJsonDocument::fromJson`，解析成功后在 `m_doc` 中保存文档，输出树/文本双视图切换
+- 输入解析：`QJsonDocument::fromJson`，解析成功后在 `m_doc` 中保存文档，输出文本/树双视图切换；**默认显示文本视图**（`m_outputStack` 索引 0=文本、1=树），「树视图 / 文本视图」按钮显示将切换到的目标视图，格式化/压缩后自动回到文本视图
 - 输出树 2 列（Key/Value），对象显示 `{ n }`、数组显示 `[ n ]`，标量按类型着色（字符串绿/数字蓝/布尔橙/null 灰）
 - 每个树节点通过 `item->setData(0, Qt::UserRole, path)` 存储 JSONPath：对象键存键名字符串、数组下标存数字字符串，逐层 `valueByPath()` 沿 `m_doc` 解析（数组→索引，对象→键，天然无歧义）
 - **导出 Excel**（`m_exportBtn`，绿色按钮）：仅当当前选中节点解析结果为数组时才可用（含根节点是数组的情形）；`currentItemChanged` 驱动启用/禁用
@@ -232,6 +234,7 @@ QTimer::singleShot(1500, [btn, original]() {
 - 三类规则（`QTableWidget` 配置）：
   - 表头替换：查找文本与第 1 行单元格**精确相等**才替换，多规则按顺序链式
   - 数据替换：第 2 行起**仅文本类型单元格**做子串替换（数字/公式/布尔不动），多规则按顺序链式
+    - **特例**：当「查找」完全等于 `其他 --` 时不做替换，而是把单元格中第一个 `其他 --` **之后**的所有英文逗号 `,` 替换为中文逗号 `，`；单元格不含 `其他 --` 则跳过（「替换为」列忽略）
   - 条件清空/删除行：**动作列**（QComboBox，「清空列」/「删除行」）+ 条件列字母 + 等于值 + 清空列（支持 `D,E,F` 与范围 `D:F`，自动去重排序）；行内条件列文本（数字按文本）相等则清空指定列；清空保留原单元格 style
   - 条件清空支持**附加条件**（第 4 列，与主条件 AND，组内 OR）：紧凑表达式 `;`=并且、`|`=或者；原子 `列=值`(等于)、`列!=值`(不等于)、`列=`(为空)、`列!=`(非空)，值留空即空/非空判断；例 `B=|C=|D=` 表示 B/C/D 任一为空。非法表达式警告并跳过该规则。`Xlsx::cellText().trimmed().isEmpty()` 判定"为空"（含缺格/空白，0 与 FALSE 不算空）
   - **删除行动作**：命中主条件+附加条件即删除整行，第 1 行表头永不参与；删除在**全部规则判定完之后统一执行**（`Xlsx::deleteRows`），行号下移、`<row r>`/`<c r>`/`dimension ref` 按 `Sheet::rowMap` 重写、被删 `<row>` 元素整段跳过；局限：合并单元格区域、自动筛选/表、公式文本引用的行号不自动修正
@@ -241,4 +244,23 @@ QTimer::singleShot(1500, [btn, original]() {
 - 改写：**只重建 dirty 单元格**（文本→inlineStr、数值/布尔/清空等），整个 sheet XML 以 QXmlStreamReader token 回显重建并保留所有属性与命名空间声明（`namespaceDeclarations()`），其余 zip 条目不动
 - 处理前弹确认框提示「仅处理第一个工作表」；处理后 `QMessageBox` 列出成功/失败与全部输出路径；文件列表项加 ✔/✘ 前缀与颜色
 - 输出：默认各输入文件同目录 `<原名>_batch.xlsx`；可指定输出目录（空目录名用 `QDir().mkpath` 自动创建），原文件永不覆盖
+
+## PDF 工具细节
+
+- 办公工具分组，索引 20，`PdfTool` 类（`pdftool.{h,cpp}`），页面由 `createPage()` 产生（懒加载，仿 `ExcelTool`）
+- 依赖：捆绑 `qpdf.exe`（Apache-2.0，v12.3.2 mingw64 构建）+ `qpdf30.dll`，与 exe 同级；其 MinGW 运行时依赖 `libgcc_s_seh-1.dll`/`libstdc++-6.dll`/`libwinpthread-1.dll` 复用已有部署
+- `main.cpp` 仅解析路径不做致命检查：缺失时 PDF 页顶部显示红色提示并禁用全部操作按钮，不影响程序启动
+- 页面结构：`QTabWidget` 六页（合并 / 拆分·提取 / 页面编排 / 加密·解密 / 压缩·优化 / 信息·元数据），底部共享状态标签 + 日志框 + 「停止」按钮
+- 全部操作通过 `QProcess` 调用 qpdf，异步执行；`runQpdf(args, title, onDone)` 统一管理忙碌状态、日志（`maskPassword()` 屏蔽 `--password=` 与 `--encrypt` 后的用户/所有者密码）与完成回调；「停止」= kill + `waitForFinished(3000)`
+- qpdf 命令要点：
+  - 合并：`qpdf --empty --pages <f1> [--password=pw] <f2> ... -- out.pdf`（无范围=全部页）
+  - 提取：`qpdf [--password=pw] in.pdf --pages . <range> -- out.pdf`（range 形如 `1-3,5,7-z`）
+  - 拆分：`--split-pages[=N]`，输出命名 `<base>-<页号>.pdf`，完成后 `QDir::entryList` 列出生成文件
+  - 编排：`--pages . <order> --`（页序表达式删除/重排），旋转 `--rotate=[+|-]angle[:range]`（相对原方向）
+  - 加密：`--encrypt <user> <owner> 256 --print=full|none --modify=all|none --extract=y|n --accessibility=y --`；解密：`--password=<pw> --decrypt`
+  - 优化：`--linearize --object-streams=generate --compress-streams=y --recompress-flate --compression-level=1..9 [--optimize-images]`，显示前后体积对比（qpdf 为无损结构优化，不降图片分辨率）
+  - 信息：`--show-npages`、`--show-encryption`、`--show-linearization`、`--show-object=trailer` 取 `/Info N G R` 后 `--json=1 --json-key=objects --json-object=N,G` 解析元数据（v1 JSON 才含 objects 且字符串已解码）
+- 输出默认源文件同目录加后缀（`_merged`/`_pages`/`_organized`/`_encrypted`/`_decrypted`/`_optimized`），`safeOutput()` 防止与源文件同路径；加密源文件支持「打开密码」输入
+- PDF 页支持拖拽 `.pdf` 到合并列表（`MainWindow::dropEvent` 页 20 分流到 `PdfTool::addFiles`）
+- `scripts/package.ps1` 的 robocopy 与 `installer.nsi` 的 `File /r` 自动带入 `qpdf.exe`/`qpdf30.dll`（需先放入 `build/`）
 

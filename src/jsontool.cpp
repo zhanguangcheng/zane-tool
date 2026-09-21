@@ -373,8 +373,8 @@ QWidget *JsonTool::createPage()
         "}"
         "QTextEdit:focus { border-color: #86b7fe; }"));
 
-    m_outputStack->addWidget(m_outputTree);
     m_outputStack->addWidget(m_outputText);
+    m_outputStack->addWidget(m_outputTree);
     m_outputStack->setCurrentIndex(0);
 
     QHBoxLayout *bottomRow = new QHBoxLayout();
@@ -384,7 +384,7 @@ QWidget *JsonTool::createPage()
     m_statusLabel->setStyleSheet(QStringLiteral("color: #6c757d; font-size: 13px;"));
     m_statusLabel->setWordWrap(true);
 
-    m_toggleBtn = new QPushButton(QStringLiteral("切换视图"), outputGroup);
+    m_toggleBtn = new QPushButton(QStringLiteral("树视图"), outputGroup);
     m_toggleBtn->setFixedHeight(34);
     m_toggleBtn->setCursor(Qt::PointingHandCursor);
     m_toggleBtn->setEnabled(false);
@@ -460,8 +460,8 @@ void JsonTool::onFormat()
     showOutput();
     m_outputTree->expandAll();
 
-    if (m_outputStack->currentIndex() != 0)
-        m_outputStack->setCurrentIndex(0);
+    m_outputStack->setCurrentIndex(0);
+    m_toggleBtn->setText(QStringLiteral("树视图"));
 }
 
 void JsonTool::onCompress()
@@ -489,8 +489,8 @@ void JsonTool::onCompress()
     showOutput();
     m_outputTree->collapseAll();
 
-    if (m_outputStack->currentIndex() != 0)
-        m_outputStack->setCurrentIndex(0);
+    m_outputStack->setCurrentIndex(0);
+    m_toggleBtn->setText(QStringLiteral("树视图"));
 }
 
 void JsonTool::onToggleView()
@@ -500,22 +500,16 @@ void JsonTool::onToggleView()
     m_outputStack->setCurrentIndex(next);
 
     if (next == 0) {
-        m_toggleBtn->setText(QStringLiteral("切换视图"));
+        m_toggleBtn->setText(QStringLiteral("树视图"));
     } else {
         m_outputText->setPlainText(m_lastFormattedJson);
-        m_toggleBtn->setText(QStringLiteral("切换视图"));
+        m_toggleBtn->setText(QStringLiteral("文本视图"));
     }
 }
 
 void JsonTool::onCopyResult()
 {
-    QString text;
-    if (m_outputStack->currentIndex() == 0) {
-        text = m_lastFormattedJson;
-    } else {
-        text = m_outputText->toPlainText();
-    }
-
+    const QString text = m_lastFormattedJson;
     if (text.isEmpty())
         return;
     QApplication::clipboard()->setText(text);
@@ -603,8 +597,8 @@ void JsonTool::onClear()
     m_copyBtn->setEnabled(false);
     m_exportBtn->setEnabled(false);
     m_outputTree->setCurrentItem(nullptr);
-    if (m_outputStack->currentIndex() != 0)
-        m_outputStack->setCurrentIndex(0);
+    m_outputStack->setCurrentIndex(0);
+    m_toggleBtn->setText(QStringLiteral("树视图"));
 }
 
 void JsonTool::onInputChanged()

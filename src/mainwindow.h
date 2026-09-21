@@ -41,6 +41,7 @@ class CertTool;
 class JsonTool;
 class CurlTool;
 class ExcelTool;
+class PdfTool;
 class QRadioButton;
 class QDateTimeEdit;
 
@@ -49,7 +50,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, QWidget *parent = nullptr);
+    explicit MainWindow(const QString &ffmpegPath, const QString &aria2Path, const QString &mkcertPath, const QString &qpdfPath, QWidget *parent = nullptr);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -90,6 +91,7 @@ private:
     CurlTool *m_curlTool;
     class DownloadTool *m_downloadTool;
     ExcelTool *m_excelTool;
+    PdfTool *m_pdfTool;
 
     QLabel *m_aboutLabel;
 
@@ -102,7 +104,7 @@ private:
     IpTool *m_ipTool;
     CalculatorPage *m_calcPage;
 
-    bool m_pageCreated[20] = {};
+    bool m_pageCreated[21] = {};
 };
 
 #endif // MAINWINDOW_H

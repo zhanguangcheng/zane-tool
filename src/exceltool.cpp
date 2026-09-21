@@ -232,6 +232,9 @@ QWidget *ExcelTool::createPage()
 
     m_headerTable = makeTable({QStringLiteral("查找"), QStringLiteral("替换为")});
     m_dataTable = makeTable({QStringLiteral("查找"), QStringLiteral("替换为")});
+    m_dataTable->horizontalHeaderItem(0)->setToolTip(QStringLiteral(
+        "第 2 行起仅文本单元格做子串替换。特例：查找值完全等于「其他 --」时不做替换，"
+        "而是把单元格中「其他 --」之后的所有英文逗号替换为中文逗号（不含「其他 --」则跳过）"));
     m_clearTable = makeTable({QStringLiteral("动作"), QStringLiteral("条件列"), QStringLiteral("等于值"), QStringLiteral("附加条件"), QStringLiteral("清空列")});
     m_clearTable->horizontalHeaderItem(0)->setToolTip(QStringLiteral("清空列：命中后清空指定列；删除行：命中后删除整行并上移（表头保留）"));
     m_clearTable->horizontalHeaderItem(1)->setToolTip(QStringLiteral("列字母，如 A"));
@@ -845,8 +848,17 @@ bool ExcelTool::processOne(const QString &src, const QString &outDir,
             for (const DataReplace &dr : data) {
                 if (dr.find.isEmpty())
                     continue;
-                if (text.contains(dr.find))
+                if (dr.find == QStringLiteral("其他 --")) {
+                    const int pos = text.indexOf(dr.find);
+                    if (pos < 0)
+                        continue;
+                    const int after = pos + dr.find.size();
+                    QString tail = text.mid(after);
+                    tail.replace(QLatin1Char(','), QChar(0xFF0C));
+                    text = text.left(after) + tail;
+                } else if (text.contains(dr.find)) {
                     text.replace(dr.find, dr.replace);
+                }
             }
             if (text != cell.text)
                 Xlsx::setCellText(&sheet, row, col, text);

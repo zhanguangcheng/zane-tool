@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Zane Tool"));
-    app.setApplicationVersion(QStringLiteral("1.0.6"));
+    app.setApplicationVersion(QStringLiteral("1.0.7"));
     app.setWindowIcon(QIcon(QStringLiteral(":/resources/app-icon.svg")));
 
     const QString qss = QStringLiteral(R"(
@@ -203,7 +203,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    MainWindow window(ffmpegPath, aria2Path, mkcertPath);
+    const QString qpdfPath = QCoreApplication::applicationDirPath() + QStringLiteral("/qpdf.exe");
+
+    MainWindow window(ffmpegPath, aria2Path, mkcertPath, qpdfPath);
     window.show();
 
     QTimer::singleShot(3000, &app, [&window]() {
